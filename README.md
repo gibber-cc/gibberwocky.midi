@@ -1,29 +1,13 @@
-# Gibberwocky
+# Gibberwocky.MIDI
 
-This repo is for a plugin to live code Ableton Live using browser-based editor. It is implemented using Max4Live, Max/MSP/Jitter, and JavaScript, and draws significantly from the Gibber browser-based live coding platform.
-
-[A screen capture of an early version](https://vimeo.com/162157104).
-
-## Installing
-
-1. Follow the instructions for installing the Max Worldmaking Package: https://github.com/worldmaking/Max_Worldmaking_Package. This will install a websocket external for Max that the code editor will use to communicate with Max4Live and Max/MSP.
-2. In Ableton Live, place the `jibberwocky.amxd` M4L object on a MIDI track. Add an instrument of your choice to this track.
+This repo is for a plugin to live code MIDI messages for targeting synths and/or digital audio workstations. It is fork of [Gibberwocky](https://github.com/charlieroberts/gibberwocky), a live-coding environment for Ableton Live, which in turn is based on [Gibber](https://github.com/charlieroberts/gibber), a live-coding environment for the browser that targets the WebAudio API.
 
 ## Using
-1. Follow the instructions inside the code editor of the M4L device. Click the `open in browser` button to launch the editor in a larger browser window (with normal debugging capabilities) as opposed to the small editor featured in the plugin.
-2. There's some extra example code to look at located in js/example/js.
-3. This is alpha-release software; there will probably be a lot of work on it during the summer of 2016 but we don't have a timeline for documentation etc. Thanks for your patience.
+1. Load the index.html page in a browser that supports the WebMIDI API (tested in Chrome).
+2. Hit Ctrl+Enter to execute a line of code. Look at the tutorials for examples of how to use... this project is currently very pre-alpha, so not much documentation to share at the moment.
 
 
 ## Development
-
-### Max for Live device
-
-Remember to unfreeze the device to edit it, and freeze it again afterward.
-
-Also, watch out to *not* edit the .amxd directly in Max, but only launch the editor from within Live. I don't know why this makes a difference, but it caused all kinds of headaches. 
-
-### Browser-based client editor
 
 First, install all packages with: 
 
@@ -33,4 +17,3 @@ npm install
 ```
 
 After making changes to any javascript, use `gulp build` from within root directory to rebuild the primary `index.js` file. You can also simply use `gulp` to launch a watcher that will recompile the main .js file whenever you make changes to any of the JavaScript files.
-
