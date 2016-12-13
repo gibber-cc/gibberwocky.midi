@@ -14,20 +14,24 @@ let Channel = {
       __velocity: 127,
       __duration: 1000,
 
-      note( ...args ) {
-        args[0] = Gibber.Theory.Note.convertToMIDI( args[0] )
+      note( num, offset=null ) {
+        const notenum = Gibber.Theory.Note.convertToMIDI( num )
         
-        let msg = [ 0x90 + number, args[0], channel.__velocity ]
-        Gibber.MIDI.send( msg, 0 )
-        msg[0] = 0x80 + number
-        Gibber.MIDI.send( msg, window.performance.now() + channel.__duration )
+        let msg = [ 0x90 + channel.number, notenum, channel.__velocity ]
+        const baseTime = offset !== null ? window.performance.now() + offset : 0
+
+        Gibber.MIDI.send( msg, baseTime )
+        msg[0] = 0x80 + channel.number
+        Gibber.MIDI.send( msg, baseTime + channel.__duration )
       },
 
-      midinote( ...args ) {
-        let msg = [ 0x90 + number, args[0], channel.__velocity ]
-        Gibber.MIDI.send( msg, 0 )
-        msg[0] = 0x80 + number
-        Gibber.MIDI.send( msg, window.performance.now() + channel.__duration )
+      midinote( num, offset=null ) {
+        let msg = [ 0x90 + channel.number, num, channel.__velocity ]
+        const baseTime = offset !== null ? window.performance.now() + offset : 0
+
+        Gibber.MIDI.send( msg, baseTime )
+        msg[0] = 0x80 + channel.number
+        Gibber.MIDI.send( msg, baseTime + channel.__duration )
       },
       
       duration( value ) {

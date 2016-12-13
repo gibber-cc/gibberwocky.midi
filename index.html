@@ -906,23 +906,27 @@ module.exports = function (Gibber) {
         __velocity: 127,
         __duration: 1000,
 
-        note: function note() {
-          for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-            args[_key] = arguments[_key];
-          }
+        note: function note(num) {
+          var offset = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
 
-          args[0] = Gibber.Theory.Note.convertToMIDI(args[0]);
+          var notenum = Gibber.Theory.Note.convertToMIDI(num);
 
-          var msg = [0x90 + number, args[0], channel.__velocity];
-          Gibber.MIDI.send(msg, 0);
-          msg[0] = 0x80 + number;
-          Gibber.MIDI.send(msg, window.performance.now() + channel.__duration);
+          var msg = [0x90 + channel.number, notenum, channel.__velocity];
+          var baseTime = offset !== null ? window.performance.now() + offset : 0;
+
+          Gibber.MIDI.send(msg, baseTime);
+          msg[0] = 0x80 + channel.number;
+          Gibber.MIDI.send(msg, baseTime + channel.__duration);
         },
-        midinote: function midinote() {
-          var msg = [0x90 + number, arguments.length <= 0 ? undefined : arguments[0], channel.__velocity];
-          Gibber.MIDI.send(msg, 0);
-          msg[0] = 0x80 + number;
-          Gibber.MIDI.send(msg, window.performance.now() + channel.__duration);
+        midinote: function midinote(num) {
+          var offset = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+
+          var msg = [0x90 + channel.number, num, channel.__velocity];
+          var baseTime = offset !== null ? window.performance.now() + offset : 0;
+
+          Gibber.MIDI.send(msg, baseTime);
+          msg[0] = 0x80 + channel.number;
+          Gibber.MIDI.send(msg, baseTime + channel.__duration);
         },
         duration: function duration(value) {
           channel.__duration = value;
@@ -5115,6 +5119,8 @@ var seqclosure = function seqclosure(Gibber) {
 
       scheduler.addMessage(this, bigTime, true, this.priority);
 
+      //console.log( 'beat:', beat, 'beatOffset:', beatOffset.toFixed() )
+
       if (shouldExecute) {
         this.values.nextTime = _beatOffset;
         this.values.beat = beat;
@@ -5128,7 +5134,7 @@ var seqclosure = function seqclosure(Gibber) {
           if (this.externalMessages[this.key] !== undefined) {
 
             //let msg = this.externalMessages[ this.key ]( value, beat + _beatOffset, this.trackID )
-            this.object[this.key](value);
+            this.object[this.key](value, Gibber.Utility.beatsToMs(_beatOffset));
             //scheduler.msgs.push( msg, this.priority )
 
             //Gibber.Communication.send( msg )

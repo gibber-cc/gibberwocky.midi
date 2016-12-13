@@ -178,6 +178,8 @@ let seqclosure = function( Gibber ) {
 
       scheduler.addMessage( this, bigTime, true, this.priority )
 
+      //console.log( 'beat:', beat, 'beatOffset:', beatOffset.toFixed() )
+
       if( shouldExecute ) {
         this.values.nextTime = _beatOffset
         this.values.beat = beat
@@ -191,7 +193,7 @@ let seqclosure = function( Gibber ) {
           if( this.externalMessages[ this.key ] !== undefined ) {
 
             //let msg = this.externalMessages[ this.key ]( value, beat + _beatOffset, this.trackID )
-            this.object[ this.key ]( value )
+            this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
             //scheduler.msgs.push( msg, this.priority )
 
             //Gibber.Communication.send( msg )
