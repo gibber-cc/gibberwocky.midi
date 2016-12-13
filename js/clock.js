@@ -81,6 +81,10 @@ let Scheduler = {
     })
   },
 
+  advanceBeat() {
+    this.currentBeat = ( this.currentBeat++ ) % 4
+    this.seq( this.currentBeat )
+  },
   seq( beat ) {
     beat = parseInt( beat )
 

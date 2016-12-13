@@ -39,7 +39,7 @@ let Gibber = {
 
   init() {
     // XXX WATCH OUT
-    this.Environment.debug = true
+    this.Environment.debug = false
 
     this.max = window.max
     this.$   = Gibber.Utility.create
@@ -50,11 +50,11 @@ let Gibber = {
 
     if( this.Environment.debug ) {
       this.Scheduler.mockRun()
-      this.MIDI.init( Gibber )
+      
     }else{
       // AS LONG AS THIS DOESN'T RUN, NO ATTEMPT TO COMMUNICATE WITH LIVE IS MADE
       //this.Communication.init( Gibber ) 
-      
+      this.MIDI.init( Gibber )
     }
 
     //this.currentTrack = this.Track( this, 1 ) // TODO: how to determine actual "id" from Max?

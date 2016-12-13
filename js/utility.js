@@ -137,7 +137,9 @@ let Utility = {
     for( let j, x, i = arr.length; i; j = parseInt(Math.random() * i), x = arr[--i], arr[i] = arr[j], arr[j] = x );
   },
 
-  beatsToMs( beats, bpm=120 ) {
+  beatsToMs( beats, bpm ) {
+    if( typeof bpm === 'undefined' ) bpm = Gibber.Scheduler.bpm
+
     const beatsPerSecond = bpm / 60
 
     return (beats / beatsPerSecond ) * 1000

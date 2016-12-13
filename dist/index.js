@@ -211,8 +211,9 @@ module.exports = function (Gibber) {
           var notenum = Gibber.Theory.Note.convertToMIDI(num);
 
           var msg = [0x90 + channel.number, notenum, channel.__velocity];
-          var baseTime = offset !== null ? window.performance.now() + offset : 0;
+          var baseTime = offset !== null ? window.performance.now() + offset : window.performance.now();
 
+          console.log(offset, baseTime, channel.__duration);
           Gibber.MIDI.send(msg, baseTime);
           msg[0] = 0x80 + channel.number;
           Gibber.MIDI.send(msg, baseTime + channel.__duration);
@@ -442,6 +443,10 @@ var Scheduler = {
         }
       }
     });
+  },
+  advanceBeat: function advanceBeat() {
+    this.currentBeat = this.currentBeat++ % 4;
+    this.seq(this.currentBeat);
   },
   seq: function seq(beat) {
     beat = parseInt(beat);
@@ -2760,7 +2765,7 @@ var Gibber = {
   },
   init: function init() {
     // XXX WATCH OUT
-    this.Environment.debug = true;
+    this.Environment.debug = false;
 
     this.max = window.max;
     this.$ = Gibber.Utility.create;
@@ -2771,10 +2776,11 @@ var Gibber = {
 
     if (this.Environment.debug) {
       this.Scheduler.mockRun();
+    } else {
+      // AS LONG AS THIS DOESN'T RUN, NO ATTEMPT TO COMMUNICATE WITH LIVE IS MADE
+      //this.Communication.init( Gibber ) 
       this.MIDI.init(Gibber);
-    } else {}
-    // AS LONG AS THIS DOESN'T RUN, NO ATTEMPT TO COMMUNICATE WITH LIVE IS MADE
-    //this.Communication.init( Gibber ) 
+    }
 
     //this.currentTrack = this.Track( this, 1 ) // TODO: how to determine actual "id" from Max?
 
@@ -3125,7 +3131,10 @@ var MIDI = {
   init: function init(_Gibber) {
     Gibber = _Gibber;
 
-    var midiPromise = navigator.requestMIDIAccess().then(MIDI.onMIDIAccess, function () {
+    var midiPromise = navigator.requestMIDIAccess().then(function (midiAccess) {
+      MIDI.midiAccess = MIDI.onMIDIAccess;
+      MIDI.createInputAndOutputLists(midiAccess);
+    }, function () {
       return console.log('access failure');
     });
 
@@ -3139,13 +3148,13 @@ var MIDI = {
       this.channels.push(Gibber.Channel(i));
     }
   },
-  onMIDIAccess: function onMIDIAccess(midiAccess) {
-    MIDI.midiAccess = midiAccess;
-
-    var opt = document.createElement('option');
-    opt.text = 'none';
-    MIDI.midiInputList.add(opt);
-    MIDI.midiOutputList.add(opt);
+  createInputAndOutputLists: function createInputAndOutputLists(midiAccess) {
+    var optin = document.createElement('option');
+    optin.text = 'none';
+    var optout = document.createElement('option');
+    optout.text = 'none';
+    MIDI.midiInputList.add(optin);
+    MIDI.midiOutputList.add(optout);
 
     MIDI.midiInputList.onchange = MIDI.selectInput;
     MIDI.midiOutputList.onchange = MIDI.selectOutput;
@@ -3159,10 +3168,10 @@ var MIDI = {
       for (var _iterator = inputs.values()[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
         var input = _step.value;
 
-        var _opt = document.createElement('option');
-        _opt.text = input.name;
-        _opt.input = input;
-        MIDI.midiInputList.add(_opt);
+        var opt = document.createElement('option');
+        opt.text = input.name;
+        opt.input = input;
+        MIDI.midiInputList.add(opt);
       }
     } catch (err) {
       _didIteratorError = true;
@@ -3188,10 +3197,10 @@ var MIDI = {
       for (var _iterator2 = outputs.values()[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
         var output = _step2.value;
 
-        var _opt2 = document.createElement('option');
-        _opt2.output = output;
-        _opt2.text = output.name;
-        MIDI.midiOutputList.add(_opt2);
+        var _opt = document.createElement('option');
+        _opt.output = output;
+        _opt.text = output.name;
+        MIDI.midiOutputList.add(_opt);
       }
     } catch (err) {
       _didIteratorError2 = true;
@@ -3208,7 +3217,17 @@ var MIDI = {
       }
     }
   },
-  selectInput: function selectInput(e) {},
+  selectInput: function selectInput(e) {
+    if (e.target.selectedIndex !== 0) {
+      // does not equal 'none'
+      var opt = e.target[e.target.selectedIndex];
+      var input = opt.input;
+      input.onmidimessage = MIDI.handleMsg;
+      input.open();
+      MIDI.input = input;
+      console.log('input:', input);
+    }
+  },
   selectOutput: function selectOutput(e) {
     console.log(e);
 
@@ -3223,7 +3242,34 @@ var MIDI = {
   },
   send: function send(msg, timestamp) {
     MIDI.output.send(msg, timestamp);
-  }
+  },
+  handleMsg: function handleMsg(msg) {
+    // msg.data, msg.timestamp
+    //console.log( 'midi message:', msg )
+
+    if (msg.data[0] === 248) {
+      // MIDI beat clock
+      if (MIDI.lastClockTime !== null) {
+        var clockTimeDiff = msg.timeStamp - MIDI.lastClockTime;
+        MIDI.lastClockTime = msg.timeStamp;
+
+        var bpm = 1000 / (clockTimeDiff * 24) * 60;
+        Gibber.Scheduler.bpm = bpm;
+        //console.log( 'BPM:', bpm, clockTimeDiff, msg.timeStamp, MIDI.lastClockTime )
+        if (MIDI.clockCount++ === 24) {
+          Gibber.Scheduler.advanceBeat();
+          MIDI.clockCount = 0;
+        }
+      } else {
+        MIDI.lastClockTime = msg.timeStamp;
+      }
+    }
+  },
+
+
+  clockCount: 0,
+  lastClockTime: null
+
 };
 
 module.exports = MIDI;
@@ -5206,8 +5252,8 @@ var Utility = {
     for (var j, x, i = arr.length; i; j = parseInt(Math.random() * i), x = arr[--i], arr[i] = arr[j], arr[j] = x) {}
   },
 
-  beatsToMs: function beatsToMs(beats) {
-    var bpm = arguments.length <= 1 || arguments[1] === undefined ? 120 : arguments[1];
+  beatsToMs: function beatsToMs(beats, bpm) {
+    if (typeof bpm === 'undefined') bpm = Gibber.Scheduler.bpm;
 
     var beatsPerSecond = bpm / 60;
 
