@@ -1,38 +1,57 @@
 const Examples = {
-  default : `// ctrl+enter to execute line or selection
-// make sure the transport in Ableton is running before 
-// attemptingto execute any code.
+  default : `/* 
+ * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
+ * A MIDI OUTPUT IN THE MIDI TAB.
+ */
 
-// pick a track to target with an instrument on it
+// use ctrl+enter to execute line or selection
+
+// pick a MIDI channel to target. 
 // subsitute another number for 0 as needed
-track = tracks[0]
+channel = Gibber.MIDI.channels[0]
 
 // play a note identified by name
-track.note( 'c4' ) // ... or d4, fb2, e#5 etc.
+channel.note( 'c4' ) // ... or d4, fb2, e#5 etc.
 
 // play a note identified by number. The number represents a
 // position in the master scale object. By default the master
 // scale is set to c4 Aeolian
 
-track.note( 0 )
+channel.note( 0 )
 
 // Change master scale root
 Scale.master.root( 'eb4' )
-track.note( 0 )
+channel.note( 0 )
 
-// sequence calls to the note method every 1/16 note
-// traveling up the current master scale. An optional
+// You can also send raw midi note messages without using
+// gibberwocky.midi's internal scale.
+channel.midinote( 64 )
+
+// You can change velocity...
+channel.velocity( 20 )
+channel.midinote( 64 )
+
+channel.velocity( 100 )
+channel.midinote( 64 )
+
+// ... and you can set duration in milliseconds
+channel.duration( 2000 )
+channel.midinote( 64 )
+channel.duration( 50 )
+channel.midinote( 64 )
+
+// sequence calls to the midinote method every 1/16 note. An optional
 // third argument assigns an id# to the sequencer; by
 // default this id is set to 0 if no argument is passed.
 // Assigning sequences to different id numbers allows them
 // to run in parallel.
-track.note.seq( [0,1,2,3,4,5,6,7], 1/16 )
+channel.midinote.seq( [60,61,62,63,64,65,66,67], 1/16 )
 
 // sequence velocity to use random values between 10-127 (midi range)
-track.velocity.seq( Rndi( 10,127 ), 1/16 )
+channel.velocity.seq( Rndi( 10,127 ), 1/16 )
 
 // sequence duration of notes in milliseconds
-track.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
+channel.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
 
 // sequence the master scale to change root every measure
 Scale.root.seq( ['c4','d4','f4','g4'], 1 )
@@ -41,7 +60,7 @@ Scale.root.seq( ['c4','d4','f4','g4'], 1 )
 Scale.mode.seq( ['aeolian','lydian', 'wholeHalf'], 1 )
 
 // stop the sequence with id# 0 from running
-track.note[ 0 ].stop()
+channel.note[ 0 ].stop()
 
 // stop scale sequencing
 Scale.mode[ 0 ].stop()
@@ -58,7 +77,7 @@ Scale.root( 'c3' )
 a = Arp( [0,2,3,5], 4, 'updown2' )
 
 // create sequencer using arpeggiator and 1/16 notes
-track.note.seq( a, 1/16 )
+channel.note.seq( a, 1/16 )
 
 // transpose the notes in our arpeggio by one scale degree
 a.transpose( 1 )
@@ -71,14 +90,14 @@ a.transpose.seq( 1,1 )
 a.reset.seq( 1, 8 )
 
 // stop sequence
-track.note[ 0 ].stop()
+channel.note[ 0 ].stop()
 
 // creates sequencer at this.note[1] (0 is default)
-track.note.seq( [0,1,2,3], [1/4,1/8], 1 )
+channel.note.seq( [0,1,2,3], [1/4,1/8], 1 )
 
 // parallel sequence at this.note[2] with 
 // random note selection  (2 is last arg)
-track.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
+channel.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
 
 // Every sequence contains two Pattern functions. 
 // The first, 'values',determines the output of the 
@@ -86,21 +105,21 @@ track.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
 // sequencer fires.
 
 // sequence transposition of this.note[2]
-track.note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
+channel.note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
 
 // stop this.note[1]
-track.note[ 1 ].stop()
+channel.note[ 1 ].stop()
 
 // start this.note[0]
-track.note[ 1 ].start()`,
+channel.note[ 1 ].start()`,
 
 ['sequencing parameter changes']: `/* Almost every parameter in Ableton can be sequenced and controlled
 using gibberwocky. Because there are hundreds (and often thousands) of paramters exposed
 for control in any given Live set, gibberwocky provides a more organized way to search
 them. In the gibberwocky interface, go to the sidebar and click on the 'lom' tab. 
 LOM is short for 'Live Object Model', and this tab will show you a tree graph 
-representation of all the tracks / devices / parameters that are exposed
-for control in Live. Click on any of the small triangles next to the tracks / devices to
+representation of all the channels / devices / parameters that are exposed
+for control in Live. Click on any of the small triangles next to the channels / devices to
 expand or collapse the view for a particular node in the treeview graph.
 
 Explore the tree graph a little bit. When you find a parameter that you'd like to control, click on
@@ -113,13 +132,13 @@ parameters exposed for control.
 Let's say you had an Impulse using the 606 preset on Track 1, and you dragged the 'Global Time'
 parameter into the window. You should see something like the following:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']
+channels['1-Impulse 606'].devices['Impulse']['Global Time']
 
 /*That string of code actually points to a function. If we pass it a value between 0-1, we can 
 change the value of the time parameter in our Impulse:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( .15 ) // low value
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( .95 ) // high value
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( .15 ) // low value
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( .95 ) // high value
 
 /* After running either of the above two lines of code (by placing your cursor on it and hitting
 ctrl+enter) you should see the time value change in your Impulse. Great! Now we can control it
@@ -128,12 +147,12 @@ explored to sequence note, velocity, and duration messages (at least what you've
 explored... if not, check out the corresponding demos). Below is a line of code that
 incremenets the time parameter by .25 every 1/2 note... it loops back to 0 after reaching 1.*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time'].seq( [0, .25, .5, .75, 1], 1/2 )
+channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( [0, .25, .5, .75, 1], 1/2 )
 
 // We can do the same pattern transforms on our values that we can do with note/veloctiy/duration 
 // sequences. We can also sequence randomly:
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time'].seq( Rndf(), 1/16 )
+channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( Rndf(), 1/16 )
 
 /* Equally as powerful as sequencing is modulating these parameters using gen~ expressions. See
 the corresponding tutorial for more details about this.*/ `,
@@ -149,19 +168,19 @@ As we saw in the paramter sequencing tutorial (look at that now if you haven't y
 bit lost here), most ugens from gen~ are available for scripting in gibberwocky. In the gibberwocky interface,
 go to the sidebar, click on the 'lom' tab, and drag a parameter into the editor that you'd like to
 modulate. For purposes of this tutorial, we'll assume we're modulating the same parameter from the
-parameter sequencing tutorial: the Global Time of an Impulse device on the first track in the Live set.
+parameter sequencing tutorial: the Global Time of an Impulse device on the first channel in the Live set.
 
 Perhaps the most basic modulation is a simple ramp. Remember that all Live parameters accepts values
 between {0,1}; this happens to be what the phasor() ugen outputs at a argument frequency. For example,
 to fade our Global Time parameter from its minimum to its maximum value once every second we would use:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( phasor( 1 ) )
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( phasor( 1 ) )
 
 /* Execute the above line to see it in action. A related ugen is beat(), which creates a ramp over an
 argument number of beats, making it easy to create tempo-synced modulation graphs. If we wanted to scale 
 our phasor() from {.25,.75} we would use slightly more complex graph:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( 
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( 
   add( 
     .25,
     div( phasor( 1 ), 2 )
@@ -173,14 +192,14 @@ this to give us our final signal. Another common ugen used for modulation is the
 gen~ this is the cycle() ugen. The cycle() accepts one parameter, the frequency that it operates at.
 So we can do the following:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( cycle( .5 ) )
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( cycle( .5 ) )
 
 /* However, you'll notice that there's a problem if you run the above line of code: the parameter
 spends half of each oscillation at its minimum value. This is because cycle() returns a value between
 {-1,1} instead of {0,1}, and whenever a value travels below 0 it is clamped. So, in order to use
 cycle() we need to scale and offset its output the same way we did with our phasor() example:*/
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time'](  
+channels['1-Impulse 606'].devices['Impulse']['Global Time'](  
   add(
     .5,  
     div( cycle( .5 ), 2 )
@@ -208,7 +227,7 @@ mycycle = cycle( .25 )
 
 mycycle[ 0 ].seq( [ .25, 1, 2 ], 1 )
 
-tracks['1-Impulse 606'].devices['Impulse']['Global Time']( add( .5, div( mycycle, 2 ) ) )
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( add( .5, div( mycycle, 2 ) ) )
 
 /*For other ugens that have more than one argument (see the gen~ random tutorial for an example) we
 simply indicate the appropriate index... for example, mysah[ 1 ] etc.*/`,
@@ -224,13 +243,13 @@ simply indicate the appropriate index... for example, mysah[ 1 ] etc.*/`,
 
 s = Score([ 
   0, function() { 
-    tracks[1].note.seq( 0, 1/4 )
+    channels[1].note.seq( 0, 1/4 )
   },
   1, function() { 
-     tracks[1].note.seq( [0,1], Euclid(3,4), 1 )
+     channels[1].note.seq( [0,1], Euclid(3,4), 1 )
   },
   2, function() { 
-    tracks[1].note.seq( [7,14,13,8].rnd(), [1/4,1/8].rnd(), 2 )
+    channels[1].note.seq( [7,14,13,8].rnd(), [1/4,1/8].rnd(), 2 )
   },  
 ])
 
@@ -240,9 +259,9 @@ s.stop()
 // (note: Safari does not currently support arrow functions, except in betas)
 
 s = Score([
-  0, ()=> tracks[1].note.seq( [0,1,2,3], 1/4 ),
-  1, ()=> tracks[1].note.seq( [0,1], Euclid(2,4), 1 ),
-  1, ()=> tracks[1].note.seq( [3,4], [1/4,1/8], 2 )
+  0, ()=> channels[1].note.seq( [0,1,2,3], 1/4 ),
+  1, ()=> channels[1].note.seq( [0,1], Euclid(2,4), 1 ),
+  1, ()=> channels[1].note.seq( [3,4], [1/4,1/8], 2 )
 ])`,
 
 ['using the Steps() object (step-sequencer)'] : `/* Steps() creates a group of sequencer objects. Each
@@ -264,7 +283,7 @@ s = Score([
  * accessed at a[60]. Note that you have to access with brackets
  * as a.60 is not valid JavaScript.
  *
- * The second argument to Steps is the track to target.  
+ * The second argument to Steps is the channel to target.  
  */ 
 
 a = Steps({
@@ -275,7 +294,7 @@ a = Steps({
   [67]: '.f..3.........f.',  
   [71]: 'e.a.e.a.e.a.a...',  
   [72]: '..............e.',
-}, tracks[0] )
+}, channels[0] )
 
 // rotate one pattern in step sequencer
 // every measure
