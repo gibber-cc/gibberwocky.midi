@@ -113,6 +113,7 @@ let Gibber = {
     }
     }, 500 )
 
+    Gibber.MIDI.clear()
     Gibber.Gen.clear()
     Gibber.Environment.codeMarkup.clear()
   },

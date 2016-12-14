@@ -2839,6 +2839,7 @@ var Gibber = {
       }
     }, 500);
 
+    Gibber.MIDI.clear();
     Gibber.Gen.clear();
     Gibber.Environment.codeMarkup.clear();
   },
@@ -3225,48 +3226,73 @@ var MIDI = {
       input.onmidimessage = MIDI.handleMsg;
       input.open();
       MIDI.input = input;
-      console.log('input:', input);
     }
   },
   selectOutput: function selectOutput(e) {
-    console.log(e);
-
     if (e.target.selectedIndex !== 0) {
       // does not equal 'none'
       var opt = e.target[e.target.selectedIndex];
       var output = opt.output;
       output.open();
       MIDI.output = output;
-      console.log('OUTPUT', output);
     }
   },
   send: function send(msg, timestamp) {
     MIDI.output.send(msg, timestamp);
   },
   handleMsg: function handleMsg(msg) {
-    // msg.data, msg.timestamp
-    //console.log( 'midi message:', msg )
-
-    if (msg.data[0] === 248) {
+    if (msg.data[0] !== 248) {
+      //console.log( 'midi message:', msg.data[0], msg.data[1] )
+    }
+    if (msg.data[0] === 0xf2) {
+      MIDI.timestamps.length = 0;
+      MIDI.clockCount = 0;
+      MIDI.lastClockTime = null;
+    } else if (msg.data[0] === 0xfa) {
+      MIDI.running = true;
+    } else if (msg.data[0] === 0xfc) {
+      MIDI.running = false;
+    } else if (msg.data[0] === 248 && MIDI.running === true) {
       // MIDI beat clock
-      if (MIDI.lastClockTime !== null) {
-        var clockTimeDiff = msg.timeStamp - MIDI.lastClockTime;
-        MIDI.lastClockTime = msg.timeStamp;
 
-        var bpm = 1000 / (clockTimeDiff * 24) * 60;
+      if (MIDI.timestamps.length > 0) {
+        var diff = msg.timeStamp - MIDI.lastClockTime;
+        MIDI.timestamps.unshift(diff);
+        while (MIDI.timestamps.length > 10) {
+          MIDI.timestamps.pop();
+        }var sum = MIDI.timestamps.reduce(function (a, b) {
+          return a + b;
+        });
+        var avg = sum / MIDI.timestamps.length;
+
+        var bpm = 1000 / (avg * 24) * 60;
         Gibber.Scheduler.bpm = bpm;
-        //console.log( 'BPM:', bpm, clockTimeDiff, msg.timeStamp, MIDI.lastClockTime )
-        if (MIDI.clockCount++ === 24) {
+
+        if (MIDI.clockCount++ === 23) {
           Gibber.Scheduler.advanceBeat();
           MIDI.clockCount = 0;
         }
       } else {
-        MIDI.lastClockTime = msg.timeStamp;
+        if (MIDI.lastClockTime !== null) {
+          var _diff = msg.timeStamp - MIDI.lastClockTime;
+          MIDI.timestamps.unshift(_diff);
+          MIDI.lastClockTime = msg.timeStamp;
+        } else {
+          MIDI.lastClockTime = msg.timeStamp;
+        }
+        MIDI.clockCount++;
       }
     }
   },
+  clear: function clear() {
+    // This should only happen on a MIDI Stop message
+    // this.timestamps.length = 0
+    // this.clockCount = 0
+    // this.lastClockTime = null
+  },
 
-
+  running: false,
+  timestamps: [],
   clockCount: 0,
   lastClockTime: null
 
