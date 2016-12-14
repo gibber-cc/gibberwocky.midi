@@ -13,7 +13,8 @@ let Channel = {
       sends:[],
       __velocity: 127,
       __duration: 1000,
-
+      
+      cc: [],
       note( num, offset=null ){
         const notenum = Gibber.Theory.Note.convertToMIDI( num )
         
@@ -42,10 +43,10 @@ let Channel = {
         channel.__velocity = value 
       },
 
-      cc( ccnum, value ) {
-        let msg =  `${channel.id} cc ${ccnum} ${value}`
-        Gibber.MIDI.send( msg )
-      },
+      //cc( ccnum, value ) {
+      //  let msg =  `${channel.id} cc ${ccnum} ${value}`
+      //  Gibber.MIDI.send( msg )
+      //},
 
       mute( value ) {
         let msg =  `${channel.id} mute ${value}`
@@ -103,11 +104,20 @@ let Channel = {
 
     Gibber.Environment.codeMarkup.prepareObject( channel ) 
     Gibber.addSequencingToMethod( channel, 'note' )
-    Gibber.addSequencingToMethod( channel, 'cc' )
+    //Gibber.addSequencingToMethod( channel, 'cc' )
     Gibber.addSequencingToMethod( channel, 'chord' )
     Gibber.addSequencingToMethod( channel, 'velocity', 1 )
     Gibber.addSequencingToMethod( channel, 'duration', 1 )
     Gibber.addSequencingToMethod( channel, 'midinote' )
+    
+    for( let i = 0; i < 128; i++ ) {
+      channel.cc[ i ] = ( val, offset = null ) => {
+        let msg = [ 0xb0 + channel.number, i, val ]
+        const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
+
+        Gibber.MIDI.send( msg, baseTime )
+      }
+    }
 
     return channel
   },

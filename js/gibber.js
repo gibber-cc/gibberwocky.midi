@@ -215,7 +215,7 @@ let Gibber = {
 
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
-          _v.assignTrackAndParamID( trackID, parameter.id )
+          Gibber.Gen.assignTrackAndParamID( _v, trackID, parameter.id )
           
           // if a gen is not already connected to this parameter, push
           if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
@@ -223,8 +223,6 @@ let Gibber = {
           }
 
           Gibber.Gen.lastConnected = _v
-          Gibber.Communication.send( `gen ${parameter.id} "${_v.out()}"` )
-          Gibber.Communication.send( `select_track ${ trackID }` )
           
           // disconnects for fades etc.
           if( typeof _v.shouldKill === 'object' ) {
@@ -242,7 +240,8 @@ let Gibber = {
           
           v = _v
         }else{
-          if( v.isGen ) {
+          // if there was a gen assigned and now a number is being assigned...
+          if( v.isGen ) { 
             Gibber.Communication.send( `ungen ${parameter.id}` )
             let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
             if( widget !== undefined && widget.mark !== undefined ) {
@@ -270,7 +269,7 @@ Gibber.Seq     = require( './seq.js' )( Gibber )
 Gibber.Score   = require( './score.js' )( Gibber )
 Gibber.Arp     = require( './arp.js' )( Gibber )
 Gibber.Euclid  = require( './euclidean.js')( Gibber )
-Gibber.Gen     = require( './gen.js' )( Gibber )
+Gibber.Gen     = require( './modulation.js' )( Gibber )
 Gibber.Steps   = require( './steps.js' )( Gibber )
 Gibber.Channel = require( './channel.js')( Gibber )
 
