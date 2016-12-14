@@ -3833,8 +3833,9 @@ var MIDI = {
     Gibber = _Gibber;
 
     var midiPromise = navigator.requestMIDIAccess().then(function (midiAccess) {
-      MIDI.midiAccess = MIDI.onMIDIAccess;
+      MIDI.midiAccess = midiAccess;
       MIDI.createInputAndOutputLists(midiAccess);
+      MIDI.openLastUsedPorts();
     }, function () {
       return console.log('access failure');
     });
@@ -3843,6 +3844,17 @@ var MIDI = {
     this.midiOutputList = document.querySelector('#midiOutputSelect');
 
     this.createChannels();
+  },
+  openLastUsedPorts: function openLastUsedPorts() {
+    var lastMIDIInput = localStorage.getItem('midi.input'),
+        lastMIDIOutput = localStorage.getItem('midi.output');
+
+    if (lastMIDIInput !== null && lastMIDIInput !== undefined) {
+      this.selectInputByName(lastMIDIInput);
+    }
+    if (lastMIDIOutput !== null && lastMIDIOutput !== undefined) {
+      this.selectOutputByName(lastMIDIOutput);
+    }
   },
   createChannels: function createChannels() {
     for (var i = 0; i < 16; i++) {
@@ -3857,8 +3869,8 @@ var MIDI = {
     MIDI.midiInputList.add(optin);
     MIDI.midiOutputList.add(optout);
 
-    MIDI.midiInputList.onchange = MIDI.selectInput;
-    MIDI.midiOutputList.onchange = MIDI.selectOutput;
+    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI;
+    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI;
 
     var inputs = midiAccess.inputs;
     var _iteratorNormalCompletion = true;
@@ -3918,7 +3930,7 @@ var MIDI = {
       }
     }
   },
-  selectInput: function selectInput(e) {
+  selectInputViaGUI: function selectInputViaGUI(e) {
     if (e.target.selectedIndex !== 0) {
       // does not equal 'none'
       var opt = e.target[e.target.selectedIndex];
@@ -3926,15 +3938,101 @@ var MIDI = {
       input.onmidimessage = MIDI.handleMsg;
       input.open();
       MIDI.input = input;
+      localStorage.setItem('midi.input', input.name);
     }
   },
-  selectOutput: function selectOutput(e) {
+  selectOutputViaGUI: function selectOutputViaGUI(e) {
     if (e.target.selectedIndex !== 0) {
       // does not equal 'none'
       var opt = e.target[e.target.selectedIndex];
       var output = opt.output;
       output.open();
       MIDI.output = output;
+      localStorage.setItem('midi.output', output.name);
+    }
+  },
+  selectInputByName: function selectInputByName(name) {
+    var inputs = MIDI.midiAccess.inputs;
+    var found = false;
+    var _iteratorNormalCompletion3 = true;
+    var _didIteratorError3 = false;
+    var _iteratorError3 = undefined;
+
+    try {
+      for (var _iterator3 = inputs.values()[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+        var input = _step3.value;
+
+        if (name === input.name) {
+          input.onmidimessage = MIDI.handleMsg;
+          input.open();
+          MIDI.input = input;
+          Gibber.Environment.log('MIDI input ' + name + ' opened.');
+          found = true;
+        }
+      }
+    } catch (err) {
+      _didIteratorError3 = true;
+      _iteratorError3 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion3 && _iterator3.return) {
+          _iterator3.return();
+        }
+      } finally {
+        if (_didIteratorError3) {
+          throw _iteratorError3;
+        }
+      }
+    }
+
+    if (found === true) {
+      for (var i = 0; i < MIDI.midiInputList.children.length; i++) {
+        if (name === MIDI.midiInputList.children[i].innerText) {
+          MIDI.midiInputList.selectedIndex = i;
+        }
+      }
+    }
+  },
+  selectOutputByName: function selectOutputByName(name) {
+    var outputs = MIDI.midiAccess.outputs;
+    var found = false;
+    var _iteratorNormalCompletion4 = true;
+    var _didIteratorError4 = false;
+    var _iteratorError4 = undefined;
+
+    try {
+      for (var _iterator4 = outputs.values()[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
+        var output = _step4.value;
+
+        if (name === output.name) {
+          output.onmidimessage = MIDI.handleMsg;
+          output.open();
+          MIDI.output = output;
+          Gibber.Environment.log('MIDI output ' + name + ' opened.');
+          found = true;
+        }
+      }
+    } catch (err) {
+      _didIteratorError4 = true;
+      _iteratorError4 = err;
+    } finally {
+      try {
+        if (!_iteratorNormalCompletion4 && _iterator4.return) {
+          _iterator4.return();
+        }
+      } finally {
+        if (_didIteratorError4) {
+          throw _iteratorError4;
+        }
+      }
+    }
+
+    if (found === true) {
+      for (var i = 0; i < MIDI.midiOutputList.children.length; i++) {
+        if (name === MIDI.midiOutputList.children[i].innerText) {
+          MIDI.midiOutputList.selectedIndex = i;
+        }
+      }
     }
   },
   send: function send(msg, timestamp) {

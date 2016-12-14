@@ -8,8 +8,9 @@ const MIDI = {
 
     const midiPromise = navigator.requestMIDIAccess()
       .then( midiAccess => {
-        MIDI.midiAccess = MIDI.onMIDIAccess
+        MIDI.midiAccess = midiAccess
         MIDI.createInputAndOutputLists( midiAccess )
+        MIDI.openLastUsedPorts()
       }, ()=> console.log('access failure') )
 
     this.midiInputList = document.querySelector( '#midiInputSelect' )
@@ -18,6 +19,17 @@ const MIDI = {
     this.createChannels()
   },
 
+  openLastUsedPorts() {
+    const lastMIDIInput = localStorage.getItem('midi.input'),
+          lastMIDIOutput = localStorage.getItem('midi.output')
+
+    if( lastMIDIInput !== null && lastMIDIInput !== undefined ) {
+      this.selectInputByName( lastMIDIInput ) 
+    }
+    if( lastMIDIOutput !== null && lastMIDIOutput !== undefined ) {
+      this.selectOutputByName( lastMIDIOutput ) 
+    }
+  },
   createChannels() {
     for( let i = 0; i < 16; i++ ) {
       this.channels.push( Gibber.Channel( i ) )
@@ -32,8 +44,8 @@ const MIDI = {
     MIDI.midiInputList.add( optin )
     MIDI.midiOutputList.add( optout )
 
-    MIDI.midiInputList.onchange = MIDI.selectInput
-    MIDI.midiOutputList.onchange = MIDI.selectOutput
+    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI
+    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI
     
     const inputs = midiAccess.inputs
     for( let input of inputs.values() ) {
@@ -53,25 +65,70 @@ const MIDI = {
 
   },
 
-  selectInput( e ) {
+  selectInputViaGUI( e ) {
     if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
       const opt = e.target[ e.target.selectedIndex ]
       const input = opt.input
       input.onmidimessage = MIDI.handleMsg
       input.open()
       MIDI.input = input
+      localStorage.setItem( 'midi.input', input.name )
     }
   
   },
 
-  selectOutput( e ) {
+  selectOutputViaGUI( e ) {
     if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
       const opt = e.target[ e.target.selectedIndex ]
       const output = opt.output
       output.open()
       MIDI.output = output
+      localStorage.setItem( 'midi.output', output.name )
+    }
+  },
+
+  selectInputByName( name ) {
+    const inputs = MIDI.midiAccess.inputs
+    let found = false
+    for( let input of inputs.values() ) {
+      if( name === input.name ) {
+        input.onmidimessage = MIDI.handleMsg
+        input.open()
+        MIDI.input = input
+        Gibber.Environment.log( 'MIDI input ' + name + ' opened.' )
+        found = true
+      }
     }
 
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiInputList.children.length; i++ ) {
+        if( name === MIDI.midiInputList.children[i].innerText ) {
+          MIDI.midiInputList.selectedIndex = i 
+        }
+      }
+    }
+  },
+
+  selectOutputByName( name ) {
+    const outputs = MIDI.midiAccess.outputs
+    let found = false
+    for( let output of outputs.values() ) {
+      if( name === output.name ) {
+        output.onmidimessage = MIDI.handleMsg
+        output.open()
+        MIDI.output = output
+        Gibber.Environment.log( 'MIDI output ' + name + ' opened.' )
+        found = true
+      }
+    }
+
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiOutputList.children.length; i++ ) {
+        if( name === MIDI.midiOutputList.children[i].innerText ) {
+          MIDI.midiOutputList.selectedIndex = i 
+        }
+      }
+    }
   },
 
   send( msg, timestamp ) {
