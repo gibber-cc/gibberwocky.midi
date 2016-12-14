@@ -107,6 +107,8 @@ const MIDI = {
           Gibber.Scheduler.advanceBeat()
           MIDI.clockCount = 0
         }
+
+        MIDI.lastClockTime = msg.timeStamp
         
       }else{
         if( MIDI.lastClockTime !== null ) {

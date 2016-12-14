@@ -294,7 +294,7 @@ a = Steps({
   [67]: '.f..3.........f.',  
   [71]: 'e.a.e.a.e.a.a...',  
   [72]: '..............e.',
-}, channels[0] )
+}, Gibber.MIDI.channels[0] )
 
 // rotate one pattern in step sequencer
 // every measure
