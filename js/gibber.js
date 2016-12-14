@@ -195,32 +195,36 @@ let Gibber = {
     }
   },
 
-  addMethod( obj, methodName, parameter, _trackID ) {
-    let v = parameter.value,
+  addMethod( obj, methodName, channel, ccnum)  {
+    let v = 0,//parameter.value,
         p,
-        trackID = isNaN( _trackID ) ? obj.id : _trackID,
-        seqKey = `${trackID} ${obj.id} ${parameter.id}`
+        seqKey = `${channel} cc ${ccnum}`
 
     //console.log( "add method trackID", trackID )
 
-    if( methodName === null ) methodName = parameter.name
+    Gibber.Seq.proto.externalMessages[ seqKey ] = ( val, offset=null ) => {
+      let msg = [ 0xb0 + channel, ccnum, val ]
+      const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
 
-    Gibber.Seq.proto.externalMessages[ seqKey ] = ( value, beat ) => {
-      let msg = `add ${beat} set ${parameter.id} ${value}` 
-      return msg
+      Gibber.MIDI.send( msg, baseTime )
     }
+
     
     obj[ methodName ] = p = ( _v ) => {
-      if( p.properties.quantized === 1 ) _v = Math.round( _v )
+      //if( p.properties.quantized === 1 ) _v = Math.round( _v )
+      
+      if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
+
+      console.log( 'isGen:' , _v.isGen )
 
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
-          Gibber.Gen.assignTrackAndParamID( _v, trackID, parameter.id )
+          Gibber.Gen.assignTrackAndParamID( _v, channel, ccnum )
           
           // if a gen is not already connected to this parameter, push
-          if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
-            Gibber.Gen.connected.push( _v )
-          }
+          //if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
+          //  Gibber.Gen.connected.push( _v )
+          //}
 
           Gibber.Gen.lastConnected = _v
           
@@ -251,14 +255,15 @@ let Gibber = {
           }
 
           v = _v
-          Gibber.Communication.send( `set ${parameter.id} ${v}` )
+          Gibber.Seq.proto.externalMessages[ seqKey ]( v )
+          //Gibber.Communication.send( `set ${parameter.id} ${v}` )
         }
       }else{
         return v
       }
     }
 
-    p.properties = parameter
+    //p.properties = parameter
 
     Gibber.addSequencingToMethod( obj, methodName, 0, seqKey )
   }

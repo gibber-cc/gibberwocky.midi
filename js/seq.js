@@ -101,35 +101,6 @@ let seqclosure = function( Gibber ) {
     },
 
     externalMessages: {
-      note( number, beat, trackID ) {
-        // let msgstring = "add " + beat + " " + t + " " + n + " " + v + " " + d
-
-        return `${trackID} add ${beat} note ${number}` 
-      },
-      midinote( number, beat, trackID ) {
-        return `${trackID} add ${beat} note ${number}` 
-      },
-      duration( value, beat, trackID ) {
-        return `${trackID} add ${beat} duration ${value}` 
-      },
-
-      velocity( value, beat, trackID ) {
-        return `${trackID} add ${beat} velocity ${value}` 
-      },
-
-      chord( chord, beat, trackID ) {
-        //console.log( chord )
-        let msg = []
-
-        for( let i = 0; i < chord.length; i++ ) {
-          msg.push( `${trackID} add ${beat} note ${chord[i]}` )
-        }
-
-        return msg
-      },
-      cc( number, value, beat ) {
-        return `${trackID} add ${beat} cc ${number} ${value}`
-      },
     },
 
     start() {
@@ -190,22 +161,24 @@ let seqclosure = function( Gibber ) {
         if( typeof value === 'function' ) value = value()
         if( value !== null ) {
           // delay messages  
-          if( this.externalMessages[ this.key ] !== undefined ) {
+          if( this.externalMessages[ this.key ] === undefined ) {
 
             //let msg = this.externalMessages[ this.key ]( value, beat + _beatOffset, this.trackID )
-            this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+            
             //scheduler.msgs.push( msg, this.priority )
-
-            //Gibber.Communication.send( msg )
-
-          } else { // schedule internal method / function call immediately
             if( this.object && this.key ) {
               if( typeof this.object[ this.key ] === 'function' ) {
-                this.object[ this.key ]( value )
+                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
               }else{
                 this.object[ this.key ] = value
               }
             }
+            //Gibber.Communication.send( msg )
+
+          } else { // schedule internal method / function call immediately
+
+            this.externalMessages[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+
           }
         }
       } 

@@ -10,7 +10,7 @@ gulp.task('build', function () {
   
   var b = browserify({
     entries: './js/index.js'
-  }).transform( babel.configure({ sourceMaps:false, presets:['es2015']}) ).bundle()
+  }).bundle()//.transform( babel.configure({ sourceMaps:false, presets:['es2015']}) ).bundle()
 
   b.pipe( source('index.js') ).pipe( gulp.dest( './dist/' ) )
   //b.pipe( source('index.js') ).pipe( gulp.dest( './' ) )

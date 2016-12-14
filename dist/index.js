@@ -3674,385 +3674,318 @@ module.exports = function (in1) {
   return ugen;
 };
 },{"./floor.js":26,"./gen.js":29,"./memo.js":41,"./sub.js":64}],73:[function(require,module,exports){
-'use strict';
+const Queue = require( './priorityqueue.js' )
 
-var Queue = require('./priorityqueue.js');
+let Scheduler = {
+  currentTime : null,
+  queue: new Queue( ( a, b ) => a.time - b.time ),
 
-var Scheduler = {
-  currentTime: null,
-  queue: new Queue(function (a, b) {
-    return a.time - b.time;
-  }),
-
-  init: function init() {
-    window.requestAnimationFrame(this.onAnimationFrame);
+  init() {
+    window.requestAnimationFrame( this.onAnimationFrame ) 
   },
-  add: function add(func, offset, idx) {
-    var time = this.currentTime + offset;
-    this.queue.push({ func: func, time: time });
+  
+  add( func, offset, idx ) {
+    let time = this.currentTime + offset
+    this.queue.push({ func, time })
 
-    return time;
+    return time
   },
-  run: function run(timestamp) {
-    var nextEvent = this.queue.peek();
 
-    if (this.queue.length && nextEvent.time <= timestamp) {
+  run( timestamp ) {
+    let nextEvent = this.queue.peek()
+    
+    if( this.queue.length && nextEvent.time <= timestamp ) {
 
       // remove event
-      this.queue.pop();
-
-      try {
-        nextEvent.func();
-      } catch (e) {
-        Gibber.Environment.error('annotation error:', e.toString());
+      this.queue.pop()
+      
+      try{
+        nextEvent.func()
+      }catch( e ) {
+        Gibber.Environment.error( 'annotation error:', e.toString() )
       }
-
+      
       // call recursively
-      this.run(timestamp);
+      this.run( timestamp )
     }
 
-    if (Gibber.Environment.codeMarkup.genWidgets.dirty === true) {
-      Gibber.Environment.codeMarkup.drawWidgets();
+    if( Gibber.Environment.codeMarkup.genWidgets.dirty === true ) {
+      Gibber.Environment.codeMarkup.drawWidgets()
     }
   },
-  onAnimationFrame: function onAnimationFrame(timestamp) {
-    this.currentTime = timestamp;
 
-    this.run(timestamp);
+  onAnimationFrame( timestamp ) {
+    this.currentTime = timestamp
 
-    window.requestAnimationFrame(this.onAnimationFrame);
+    this.run( timestamp )    
+
+    window.requestAnimationFrame( this.onAnimationFrame )
   }
-};
 
-Scheduler.onAnimationFrame = Scheduler.onAnimationFrame.bind(Scheduler);
+}
 
-module.exports = Scheduler;
+Scheduler.onAnimationFrame = Scheduler.onAnimationFrame.bind( Scheduler )
+
+module.exports = Scheduler
+
 },{"./priorityqueue.js":88}],74:[function(require,module,exports){
-'use strict';
+module.exports = function( Gibber ) {
 
-module.exports = function (Gibber) {
+let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
+  let notes, arp
+  
+  if( typeof chord === 'string' ) {
+    // TODO: doesn't work... numbers can't be MIDI numbers because they go through scale conversion
+    let _chord = Gibber.Theory.Chord.create( chord )
+    chord = _chord.notes
+  }
 
-  var Arp = function Arp() {
-    var chord = arguments.length <= 0 || arguments[0] === undefined ? [0, 2, 4, 6] : arguments[0];
-    var octaves = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-    var pattern = arguments.length <= 2 || arguments[2] === undefined ? 'updown2' : arguments[2];
+  notes = Gibber.Pattern.apply( null, chord.slice( 0 ) )
 
-    var notes = void 0,
-        _arp = void 0;
+  if( pattern === 'down' ) notes.reverse()
+  
+  let maxLength = notes.values.length * octaves,
+      dir = pattern !== 'down' ? 'up' : 'down'
 
-    if (typeof chord === 'string') {
-      // TODO: doesn't work... numbers can't be MIDI numbers because they go through scale conversion
-      var _chord = Gibber.Theory.Chord.create(chord);
-      chord = _chord.notes;
+  arp = ()=> {
+    arp.phase++
+    if( arp.phase >= maxLength ) {
+      arp.phase = 0
     }
 
-    notes = Gibber.Pattern.apply(null, chord.slice(0));
-
-    if (pattern === 'down') notes.reverse();
-
-    var maxLength = notes.values.length * octaves,
-        dir = pattern !== 'down' ? 'up' : 'down';
-
-    _arp = function arp() {
-      _arp.phase++;
-      if (_arp.phase >= maxLength) {
-        _arp.phase = 0;
-      }
-
-      if (_arp.phase % notes.values.length === 0) {
-        if (dir === 'up') {
-          if (_arp.octave < octaves) {
-            _arp.octave += 1;
+    if( arp.phase % notes.values.length === 0 ) {
+      if( dir === 'up' ) {
+        if( arp.octave < octaves ) {
+          arp.octave += 1 
+        }else{ 
+          if( pattern === 'up' ) {
+            arp.octave = 1
+          }else{
+            dir = 'down'
+            notes.reverse()
+          }
+        }
+      }else{
+        if( arp.octave > 1 ) {
+          arp.octave += -1
+        }else{
+          if( pattern === 'down' ) {
+            arp.octave = octaves
           } else {
-            if (pattern === 'up') {
-              _arp.octave = 1;
-            } else {
-              dir = 'down';
-              notes.reverse();
-            }
-          }
-        } else {
-          if (_arp.octave > 1) {
-            _arp.octave += -1;
-          } else {
-            if (pattern === 'down') {
-              _arp.octave = octaves;
-            } else {
-              dir = 'up';
-              notes.reverse();
-            }
+            dir = 'up'
+            notes.reverse()
           }
         }
       }
-
-      var octaveMod = void 0,
-          note = _arp.notes();
-
-      //note = Gibber.Theory.Note.convertToMIDI( note )
-
-      for (var i = 1; i < _arp.octave; i++) {
-        note += 7;
-      }
-
-      var methodNames = ['rotate', 'switch', 'invert', 'reset', 'flip', 'transpose', 'reverse', 'shuffle', 'scale', 'store', 'range', 'set'];
-
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
-
-      try {
-        for (var _iterator = methodNames[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var key = _step.value;
-
-          _arp[key] = notes[key].bind(notes);
-          Gibber.addSequencingToMethod(_arp, key);
-        }
-
-        //arp.transpose = notes.transpose.bind( notes )
-        //arp.reset = notes.reset.bind( notes )
-        //arp.reverse = notes.reverse.bind( notes )
-        //arp.rotate  = notes.rotate.bind( notes )
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
-        }
-      }
-
-      return note;
-    };
-
-    _arp.octave = 0;
-    _arp.phase = -1;
-    _arp.notes = notes;
-
-    return _arp;
-  };
-
-  Arp.patterns = {
-    up: function up(array) {
-      return array;
-    },
-    down: function down(array) {
-      return array.reverse();
-    },
-    updown: function updown(array) {
-      var _tmp = array.slice(0);
-      _tmp.reverse();
-      return array.concat(_tmp);
-    },
-    updown2: function updown2(array) {
-      // do not repeat highest and lowest notes
-      var tmp = array.slice(0);
-      tmp.pop();
-      tmp.reverse();
-      tmp.pop();
-      return array.concat(tmp);
     }
-  };
 
-  return Arp;
-};
+    let octaveMod,
+        note = arp.notes()
+    
+    //note = Gibber.Theory.Note.convertToMIDI( note )
+    
+    for( let i = 1; i < arp.octave; i++ ) {
+      note += 7
+    }
+
+    let methodNames =  [
+      'rotate','switch','invert','reset', 'flip',
+      'transpose','reverse','shuffle','scale',
+      'store', 'range', 'set'
+    ]
+
+    for( let key of methodNames ) {
+      arp[ key ] = notes[ key ].bind( notes )
+      Gibber.addSequencingToMethod( arp, key ) 
+    }
+
+    //arp.transpose = notes.transpose.bind( notes )
+    //arp.reset = notes.reset.bind( notes )
+    //arp.reverse = notes.reverse.bind( notes )
+    //arp.rotate  = notes.rotate.bind( notes )
+
+    return note
+  }
+
+  arp.octave = 0
+  arp.phase = -1
+  arp.notes = notes
+
+  return arp
+}
+
+Arp.patterns = {
+  up( array ) {
+    return array
+  },
+
+  down( array ) {
+    return array.reverse()
+  },
+
+  updown( array ) {
+    let _tmp = array.slice( 0 )
+    _tmp.reverse()
+    return array.concat( _tmp )
+  },
+
+  updown2( array ) { // do not repeat highest and lowest notes
+    var tmp = array.slice( 0 )
+    tmp.pop()
+    tmp.reverse()
+    tmp.pop()
+    return array.concat( tmp )
+  }
+}
+
+return Arp
+
+}
+
 },{}],75:[function(require,module,exports){
-'use strict';
+module.exports = function( Gibber ) {
 
-module.exports = function (Gibber) {
-
-  var noteon = 0x90,
+const noteon  = 0x90,
       noteoff = 0x80,
-      cc = 0x70;
+      cc = 0x70
+      
+let Channel = {
+  create( number ) {
 
-  var Channel = {
-    create: function create(number) {
+    let channel = {    
+      number,
+		  sequences:{},
+      sends:[],
+      __velocity: 127,
+      __duration: 1000,
+      
+      note( num, offset=null ){
+        const notenum = Gibber.Theory.Note.convertToMIDI( num )
+        
+        let msg = [ 0x90 + channel.number, notenum, channel.__velocity ]
+        const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
 
-      var channel = {
-        number: number,
-        sequences: {},
-        sends: [],
-        __velocity: 127,
-        __duration: 1000,
+        Gibber.MIDI.send( msg, baseTime )
+        msg[0] = 0x80 + channel.number
+        Gibber.MIDI.send( msg, baseTime + channel.__duration )
+      },
 
-        cc: [],
-        note: function note(num) {
-          var offset = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+      midinote( num, offset=null ) {
+        let msg = [ 0x90 + channel.number, num, channel.__velocity ]
+        const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
 
-          var notenum = Gibber.Theory.Note.convertToMIDI(num);
+        Gibber.MIDI.send( msg, baseTime )
+        msg[0] = 0x80 + channel.number
+        Gibber.MIDI.send( msg, baseTime + channel.__duration )
+      },
+      
+      duration( value ) {
+        channel.__duration = value
+      },
+      
+      velocity( value ) {
+        channel.__velocity = value 
+      },
 
-          var msg = [0x90 + channel.number, notenum, channel.__velocity];
-          var baseTime = offset !== null ? window.performance.now() + offset : window.performance.now();
+      //cc( ccnum, value ) {
+      //  let msg =  `${channel.id} cc ${ccnum} ${value}`
+      //  Gibber.MIDI.send( msg )
+      //},
 
-          Gibber.MIDI.send(msg, baseTime);
-          msg[0] = 0x80 + channel.number;
-          Gibber.MIDI.send(msg, baseTime + channel.__duration);
-        },
-        midinote: function midinote(num) {
-          var offset = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+      mute( value ) {
+        let msg =  `${channel.id} mute ${value}`
+        Gibber.MIDI.send( msg )
+      },
 
-          var msg = [0x90 + channel.number, num, channel.__velocity];
-          var baseTime = offset !== null ? window.performance.now() + offset : window.performance.now();
+      solo( value ) {
+        let msg =  `${channel.id} solo ${value}`
+        Gibber.MIDI.send( msg )
+      },
 
-          Gibber.MIDI.send(msg, baseTime);
-          msg[0] = 0x80 + channel.number;
-          Gibber.MIDI.send(msg, baseTime + channel.__duration);
-        },
-        duration: function duration(value) {
-          channel.__duration = value;
-        },
-        velocity: function velocity(value) {
-          channel.__velocity = value;
-        },
-
-
-        //cc( ccnum, value ) {
-        //  let msg =  `${channel.id} cc ${ccnum} ${value}`
-        //  Gibber.MIDI.send( msg )
-        //},
-
-        mute: function mute(value) {
-          var msg = channel.id + ' mute ' + value;
-          Gibber.MIDI.send(msg);
-        },
-        solo: function solo(value) {
-          var msg = channel.id + ' solo ' + value;
-          Gibber.MIDI.send(msg);
-        },
-        chord: function chord(_chord) {
-          var velocity = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
-          var duration = arguments.length <= 2 || arguments[2] === undefined ? '' : arguments[2];
-
-          var msg = [];
-
-          if (typeof _chord === 'string') {
-            _chord = Gibber.Theory.Chord.create(_chord).notes;
-            _chord.forEach(function (v) {
-              return channel.midinote(v);
-            });
-          } else {
-            _chord.forEach(function (v) {
-              return channel.note(v);
-            });
-          }
-        },
-        midichord: function midichord(chord) {
-          var velocity = arguments.length <= 1 || arguments[1] === undefined ? '' : arguments[1];
-          var duration = arguments.length <= 2 || arguments[2] === undefined ? '' : arguments[2];
-
-          var msg = [];
-          for (var i = 0; i < chord.length; i++) {
-            msg.push((channel.id + ' note ' + chord[i] + ' ' + velocity + ' ' + duration).trimRight());
-          }
-
-          Gibber.MIDI.send(msg);
-        },
-        stop: function stop() {
-          for (var key in this.sequences) {
-            var _iteratorNormalCompletion = true;
-            var _didIteratorError = false;
-            var _iteratorError = undefined;
-
-            try {
-              for (var _iterator = this.sequences[key][Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                var seq = _step.value;
-
-                if (seq !== undefined) {
-                  seq.stop();
-                }
-              }
-            } catch (err) {
-              _didIteratorError = true;
-              _iteratorError = err;
-            } finally {
-              try {
-                if (!_iteratorNormalCompletion && _iterator.return) {
-                  _iterator.return();
-                }
-              } finally {
-                if (_didIteratorError) {
-                  throw _iteratorError;
-                }
-              }
-            }
-          }
-        },
-        start: function start() {
-          for (var key in this.sequences) {
-            var _iteratorNormalCompletion2 = true;
-            var _didIteratorError2 = false;
-            var _iteratorError2 = undefined;
-
-            try {
-              for (var _iterator2 = this.sequences[key][Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-                var seq = _step2.value;
-
-                if (seq !== undefined) {
-                  seq.start();
-                }
-              }
-            } catch (err) {
-              _didIteratorError2 = true;
-              _iteratorError2 = err;
-            } finally {
-              try {
-                if (!_iteratorNormalCompletion2 && _iterator2.return) {
-                  _iterator2.return();
-                }
-              } finally {
-                if (_didIteratorError2) {
-                  throw _iteratorError2;
-                }
-              }
-            }
-          }
-        },
-        select: function select() {
-          Gibber.MIDI.send('select_channel ' + channel.id);
+      chord( chord, velocity='', duration='' ) {
+        let msg = []
+        
+        if( typeof chord  === 'string' ){
+          chord = Gibber.Theory.Chord.create( chord ).notes
+          chord.forEach( v => channel.midinote( v ) )
+        }else{
+          chord.forEach( v => channel.note( v ) )
         }
-      };
+      },
 
-      Gibber.Environment.codeMarkup.prepareObject(channel);
-      Gibber.addSequencingToMethod(channel, 'note');
-      //Gibber.addSequencingToMethod( channel, 'cc' )
-      Gibber.addSequencingToMethod(channel, 'chord');
-      Gibber.addSequencingToMethod(channel, 'velocity', 1);
-      Gibber.addSequencingToMethod(channel, 'duration', 1);
-      Gibber.addSequencingToMethod(channel, 'midinote');
+      midichord( chord, velocity='', duration='' ) {
+        let msg = []
+        for( let i = 0; i < chord.length; i++ ) {
+          msg.push( `${channel.id} note ${chord[i]} ${velocity} ${duration}`.trimRight() )
+        }
 
-      var _loop = function _loop(i) {
-        channel.cc[i] = function (val) {
-          var offset = arguments.length <= 1 || arguments[1] === undefined ? null : arguments[1];
+        Gibber.MIDI.send( msg )
+      },
 
-          var msg = [0xb0 + channel.number, i, val];
-          var baseTime = offset !== null ? window.performance.now() + offset : window.performance.now();
+      stop() {
+        for( let key in this.sequences ) {
+          for( let seq of this.sequences[ key ] ) {
+            if( seq !== undefined ) {
+              seq.stop()
+            }
+          }
+        }
+      },
 
-          Gibber.MIDI.send(msg, baseTime);
-        };
-      };
+      start() {
+        for( let key in this.sequences ) {
+          for( let seq of this.sequences[ key ] ) {
+            if( seq !== undefined ) {
+              seq.start()
+            }
+          }
+        }
+      },
+      select() {
+        Gibber.MIDI.send( `select_channel ${channel.id}` )
+      }
+    }
 
-      for (var i = 0; i < 128; i++) {
-        _loop(i);
+    Gibber.Environment.codeMarkup.prepareObject( channel ) 
+    Gibber.addSequencingToMethod( channel, 'note' )
+    Gibber.addSequencingToMethod( channel, 'chord' )
+    Gibber.addSequencingToMethod( channel, 'velocity', 1 )
+    Gibber.addSequencingToMethod( channel, 'duration', 1 )
+    Gibber.addSequencingToMethod( channel, 'midinote' )
+    
+    for( let i = 0; i < 128; i++ ) {
+      const ccnum = i
+      channel[ 'cc'+ccnum ] = ( val, offset = null ) => {
+        let msg = [ 0xb0 + channel.number, ccnum, val ]
+        const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
+
+        Gibber.MIDI.send( msg, baseTime )
       }
 
-      return channel;
+      Object.assign( channel[ 'cc'+ccnum], {
+        markup: {
+          textClasses:{},
+          cssClasses:{}
+        }
+      })
+
+      Gibber.addMethod( channel, 'cc'+ccnum, channel.number, ccnum  ) 
+      //Gibber.addSequencingToMethod( channel, 'cc'+i  )
     }
-  };
 
-  return Channel.create.bind(Channel);
-};
+    return channel
+  },
+}
+
+return Channel.create.bind( Channel )
+
+}
+
 },{}],76:[function(require,module,exports){
-'use strict';
+const Queue = require( './priorityqueue.js' )
+const Big   = require( 'big.js' )
 
-var Queue = require('./priorityqueue.js');
-var Big = require('big.js');
-
-var Scheduler = {
+let Scheduler = {
   phase: 0,
   msgs: [],
   delayed: [],
@@ -4062,2268 +3995,2361 @@ var Scheduler = {
   mockInterval: null,
   currentBeat: 1,
 
-  queue: new Queue(function (a, b) {
-    if (a.time.eq(b.time)) {
-      return b.priority - a.priority;
-    } else {
-      return a.time.minus(b.time);
+  queue: new Queue( ( a, b ) => {
+    if( a.time.eq( b.time ) ) {
+      return b.priority - a.priority
+    }else{
+      return a.time.minus( b.time )
     }
   }),
 
-  mockRun: function mockRun() {
-    var _this = this;
-
-    var seqFunc = function seqFunc() {
-      _this.seq(_this.mockBeat++ % 8);
-    };
-    this.mockInterval = setInterval(seqFunc, 500);
+  mockRun() {
+    let seqFunc = () => {
+      this.seq( this.mockBeat++ % 8 )
+    } 
+    this.mockInterval = setInterval( seqFunc, 500 )
   },
 
-
   // all ticks take the form of { time:timeInSamples, seq:obj }
-  advance: function advance(advanceAmount, beat) {
-    var end = this.phase + advanceAmount,
+  advance( advanceAmount, beat ) {
+    let end = this.phase + advanceAmount,
         nextTick = this.queue.peek(),
         shouldEnd = false,
-        beatOffset = void 0;
+        beatOffset
 
-    this.currentBeat = beat;
+    this.currentBeat = beat
 
-    if (this.queue.length && parseFloat(nextTick.time.toFixed(6)) < end) {
-      beatOffset = nextTick.time.minus(this.phase).div(advanceAmount);
-
+    if( this.queue.length && parseFloat( nextTick.time.toFixed(6) ) < end ) {
+      beatOffset = nextTick.time.minus( this.phase ).div( advanceAmount )
+      
       // remove tick
-      this.queue.pop();
+      this.queue.pop()
 
-      this.currentTime = nextTick.time;
+      
+      this.currentTime = nextTick.time
 
       // execute callback function for tick passing schedule, time and beatOffset
       // console.log( 'next tick', nextTick.shouldExecute )
-      nextTick.seq.tick(this, beat, beatOffset, nextTick.shouldExecute);
+      nextTick.seq.tick( this, beat, beatOffset, nextTick.shouldExecute )
 
       // recursively call advance
-      this.advance(advanceAmount, beat);
+      this.advance( advanceAmount, beat ) 
     } else {
-      if (this.msgs.length) {
-        // if output messages have been created
-        this.outputMessages(); // output them
-        this.msgs.length = 0; // and reset the contents of the output messages array
+      if( this.msgs.length ) {      // if output messages have been created
+        this.outputMessages()       // output them
+        this.msgs.length = 0        // and reset the contents of the output messages array
       }
 
-      this.phase += advanceAmount; // increment phase
-      this.currentTime = this.phase;
+      this.phase += advanceAmount   // increment phase
+      this.currentTime = this.phase
     }
   },
-  addMessage: function addMessage(seq, time) {
-    var shouldExecute = arguments.length <= 2 || arguments[2] === undefined ? true : arguments[2];
-    var priority = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
 
-    if (typeof time === 'number') time = Big(time);
+  addMessage( seq, time, shouldExecute=true, priority=0 ) {
+    if( typeof time === 'number' ) time = Big( time )
     // TODO: should 4 be a function of the time signature?
-    time = time.times(4).plus(this.currentTime);
+    time = time.times( 4 ).plus( this.currentTime )
 
-    this.queue.push({ seq: seq, time: time, shouldExecute: shouldExecute, priority: priority });
+    this.queue.push({ seq, time, shouldExecute, priority })
   },
-  outputMessages: function outputMessages() {
-    this.msgs.forEach(function (msg) {
-      if (Array.isArray(msg)) {
-        // for chords etc.
-        msg.forEach(Gibber.Communication.send);
-      } else {
-        if (msg !== 0) {
-          // XXX
-          Gibber.Communication.send(msg);
+
+  outputMessages() {
+    this.msgs.forEach( msg => {
+      if( Array.isArray( msg ) ) { // for chords etc.
+        msg.forEach( Gibber.Communication.send )
+      }else{
+        if( msg !== 0 ) { // XXX
+          Gibber.Communication.send( msg )
         }
       }
-    });
+    })
   },
-  advanceBeat: function advanceBeat() {
-    this.currentBeat = this.currentBeat++ % 4;
-    this.seq(this.currentBeat);
+
+  advanceBeat() {
+    this.currentBeat = ( this.currentBeat++ ) % 4
+    this.seq( this.currentBeat )
   },
-  seq: function seq(beat) {
-    beat = parseInt(beat);
+  seq( beat ) {
+    beat = parseInt( beat )
 
-    if (beat === 1) {
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
-
-      try {
-        for (var _iterator = Scheduler.functionsToExecute[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var func = _step.value;
-
-          try {
-            func();
-          } catch (e) {
-            console.error('error with user submitted code:', e);
-          }
-        }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
+    if( beat === 1 ) {
+      for( let func of Scheduler.functionsToExecute ) {
         try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
+          func()
+        } catch( e ) {
+          console.error( 'error with user submitted code:', e )
         }
       }
-
-      Scheduler.functionsToExecute.length = 0;
+      Scheduler.functionsToExecute.length = 0
     }
 
-    Scheduler.advance(1, beat);
+    Scheduler.advance( 1, beat )
+    
+    Scheduler.outputMessages()
+  },
 
-    Scheduler.outputMessages();
-  }
-};
+}
 
-module.exports = Scheduler;
+module.exports = Scheduler
+
 },{"./priorityqueue.js":88,"big.js":98}],77:[function(require,module,exports){
-'use strict';
+const acorn = require( 'acorn' )
 
-var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+const callDepths = [
+  'SCORE',
+  'THIS.METHOD',
+  'THIS.METHOD.SEQ',
+  'THIS.METHOD[ 0 ].SEQ',
+  'THIS.METHOD.VALUES.REVERSE.SEQ',
+  'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ',
+  'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ',  
+  'TRACKS[0].METHOD.SEQ',
+  'TRACKS[0].METHOD[0].SEQ',
+  'TRACKS[0].METHOD.VALUES.REVERSE.SEQ',
+  'TRACKS[0].METHOD[0].VALUES.REVERSE.SEQ'
+]
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+const trackNames = [ 'this', 'tracks', 'master', 'returns' ]
 
-var acorn = require('acorn');
+const Utility = require( './utility.js' )
+const $ = Utility.create
 
-var callDepths = ['SCORE', 'THIS.METHOD', 'THIS.METHOD.SEQ', 'THIS.METHOD[ 0 ].SEQ', 'THIS.METHOD.VALUES.REVERSE.SEQ', 'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ', 'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ', 'TRACKS[0].METHOD.SEQ', 'TRACKS[0].METHOD[0].SEQ', 'TRACKS[0].METHOD.VALUES.REVERSE.SEQ', 'TRACKS[0].METHOD[0].VALUES.REVERSE.SEQ'];
+let Marker = {
+  genWidgets: { dirty:false },
+  _patternTypes: [ 'values', 'timings', 'index' ],
 
-var trackNames = ['this', 'tracks', 'master', 'returns'];
-
-var Utility = require('./utility.js');
-var $ = Utility.create;
-
-var Marker = {
-  genWidgets: { dirty: false },
-  _patternTypes: ['values', 'timings', 'index'],
-
-  prepareObject: function prepareObject(obj) {
+  prepareObject( obj ) {
     obj.markup = {
       textMarkers: {},
-      cssClasses: {}
-    };
+      cssClasses:  {} 
+    }  
   },
-  process: function process(code, position, codemirror, track) {
-    var shouldParse = code.includes('.seq') || code.includes('Steps(') || code.includes('Score('),
-        isGen = false;
 
-    if (!shouldParse) {
-      // check for gen~ assignment
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
+  process( code, position, codemirror, track ) {
+    let shouldParse = code.includes( '.seq' ) || code.includes( 'Steps(' ) || code.includes( 'Score(' ),
+        isGen = false
 
-      try {
-        for (var _iterator = Gibber.Gen.names[Symbol.iterator](), _step2; !(_iteratorNormalCompletion = (_step2 = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var ugen = _step2.value;
-          var _iteratorNormalCompletion2 = true;
-          var _didIteratorError2 = false;
-          var _iteratorError2 = undefined;
+    if( !shouldParse ) { // check for gen~ assignment
+      for( let ugen of Gibber.Gen.names ) {
 
-          try {
+        for( let ugen of Gibber.Gen.names ) {
+          let idx = code.indexOf( ugen )
+          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+            shouldParse = true
+            isGen = true
 
-            for (var _iterator2 = Gibber.Gen.names[Symbol.iterator](), _step3; !(_iteratorNormalCompletion2 = (_step3 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-              var _ugen = _step3.value;
-
-              var idx = code.indexOf(_ugen);
-              if (idx !== -1 && code.charAt(idx + _ugen.length) === '(') {
-                shouldParse = true;
-                isGen = true;
-
-                break;
-              }
-            }
-          } catch (err) {
-            _didIteratorError2 = true;
-            _iteratorError2 = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion2 && _iterator2.return) {
-                _iterator2.return();
-              }
-            } finally {
-              if (_didIteratorError2) {
-                throw _iteratorError2;
-              }
-            }
+            break;
           }
         }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
+      }
+    }
+
+    if( !shouldParse ) return
+
+    let tree = acorn.parse( code, { locations:true, ecmaVersion:6 } ).body
+    
+    for( let node of tree ) {
+      if( node.type === 'ExpressionStatement' ) { // not control flow
+        node.verticalOffset  = position.start.line
+        node.horizontalOffset = position.horizontalOffset === undefined ? 0 : position.horizontalOffset
         try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
+          if( isGen ) {
+            this.processGen( node, codemirror, track )
+          }else{ 
+            this._process[ node.type ]( node, codemirror, track )
           }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
-        }
-      }
-    }
-
-    if (!shouldParse) return;
-
-    var tree = acorn.parse(code, { locations: true, ecmaVersion: 6 }).body;
-
-    var _iteratorNormalCompletion3 = true;
-    var _didIteratorError3 = false;
-    var _iteratorError3 = undefined;
-
-    try {
-      for (var _iterator3 = tree[Symbol.iterator](), _step4; !(_iteratorNormalCompletion3 = (_step4 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-        var node = _step4.value;
-
-        if (node.type === 'ExpressionStatement') {
-          // not control flow
-          node.verticalOffset = position.start.line;
-          node.horizontalOffset = position.horizontalOffset === undefined ? 0 : position.horizontalOffset;
-          try {
-            if (isGen) {
-              this.processGen(node, codemirror, track);
-            } else {
-              this._process[node.type](node, codemirror, track);
-            }
-          } catch (error) {
-            console.log('error processing annotation for', node.expression.type, error);
-          }
-        }
-      }
-    } catch (err) {
-      _didIteratorError3 = true;
-      _iteratorError3 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion3 && _iterator3.return) {
-          _iterator3.return();
-        }
-      } finally {
-        if (_didIteratorError3) {
-          throw _iteratorError3;
+        } catch( error ) {
+          console.log( 'error processing annotation for', node.expression.type, error )
         }
       }
     }
   },
-  processGen: function processGen(node, cm, track) {
-    var ch = node.end,
-        line = node.verticalOffset,
-        start = ch - 1,
-        end = node.end;
+  
+  processGen( node, cm, track ) {
+    let ch = node.end, line = node.verticalOffset, start = ch - 1, end = node.end 
+    
+    cm.replaceRange( ') ', { line, ch:start }, { line, ch } )
 
-    cm.replaceRange(') ', { line: line, ch: start }, { line: line, ch: ch });
+    let widget = document.createElement( 'canvas' )
+    widget.ctx = widget.getContext('2d')
+    widget.style.display = 'inline-block'
+    widget.style.verticalAlign = 'middle'
+    widget.style.height = '1.1em'
+    widget.style.width = '60px'
+    widget.style.backgroundColor = '#bbb'
+    widget.style.marginLeft = '.5em'
+    widget.style.borderLeft = '1px solid #666'
+    widget.style.borderRight = '1px solid #666'
+    widget.setAttribute( 'width', 60 )
+    widget.setAttribute( 'height', 13 )
+    widget.ctx.fillStyle = '#bbb'
+    widget.ctx.strokeStyle = '#333'
+    widget.ctx.lineWidth = .5
+    widget.gen = Gibber.Gen.lastConnected
+    widget.values = []
 
-    var widget = document.createElement('canvas');
-    widget.ctx = widget.getContext('2d');
-    widget.style.display = 'inline-block';
-    widget.style.verticalAlign = 'middle';
-    widget.style.height = '1.1em';
-    widget.style.width = '60px';
-    widget.style.backgroundColor = '#bbb';
-    widget.style.marginLeft = '.5em';
-    widget.style.borderLeft = '1px solid #666';
-    widget.style.borderRight = '1px solid #666';
-    widget.setAttribute('width', 60);
-    widget.setAttribute('height', 13);
-    widget.ctx.fillStyle = '#bbb';
-    widget.ctx.strokeStyle = '#333';
-    widget.ctx.lineWidth = .5;
-    widget.gen = Gibber.Gen.lastConnected;
-    widget.values = [];
+    let oldWidget = Marker.genWidgets[ widget.gen.paramID ] 
 
-    var oldWidget = Marker.genWidgets[widget.gen.paramID];
+    if( oldWidget !== undefined ) {
+      oldWidget.parentNode.removeChild( oldWidget )
+    } 
+    
+    Marker.genWidgets[ widget.gen.paramID ] = widget
 
-    if (oldWidget !== undefined) {
-      oldWidget.parentNode.removeChild(oldWidget);
-    }
-
-    Marker.genWidgets[widget.gen.paramID] = widget;
-
-    widget.mark = cm.markText({ line: line, ch: ch }, { line: line, ch: end + 1 }, { replacedWith: widget });
+    widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
   },
-  updateWidget: function updateWidget(id, value) {
-    var widget = Marker.genWidgets[id];
-    if (widget === undefined) return;
 
-    widget.values.push(parseFloat(value));
+  updateWidget( id, value ) {
+    let widget = Marker.genWidgets[ id ]
+    if( widget === undefined ) return 
 
-    while (widget.values.length > 60) {
-      widget.values.shift();
-    }Marker.genWidgets.dirty = true;
+    widget.values.push( parseFloat( value ) )
+
+    while( widget.values.length > 60 ) widget.values.shift()
+    Marker.genWidgets.dirty = true
   },
-  drawWidgets: function drawWidgets() {
 
-    Marker.genWidgets.dirty = false;
+  drawWidgets() {
+    
+    Marker.genWidgets.dirty = false
 
-    for (var key in Marker.genWidgets) {
-      var widget = Marker.genWidgets[key];
-      if ((typeof widget === 'undefined' ? 'undefined' : _typeof(widget)) === 'object' && widget.ctx !== undefined) {
-        widget.ctx.fillRect(0, 0, widget.width, widget.height);
-        widget.ctx.beginPath();
-        widget.ctx.moveTo(0, widget.height / 2);
-        for (var i = 0; i < widget.values.length; i++) {
-          widget.ctx.lineTo(i, widget.values[i] * widget.height);
+    for( let key in Marker.genWidgets ) {
+      let widget = Marker.genWidgets[ key ]
+      if( typeof widget === 'object' && widget.ctx !== undefined ) {
+        widget.ctx.fillRect( 0,0, widget.width, widget.height )
+        widget.ctx.beginPath()
+        widget.ctx.moveTo( 0,  widget.height / 2 )
+        for( let i = 0; i < widget.values.length; i++ ) {
+          widget.ctx.lineTo( i, widget.values[ i ] * widget.height )
         }
-        widget.ctx.stroke();
+        widget.ctx.stroke()
       }
     }
   },
-  clear: function clear() {
-    for (var key in Marker.genWidgets) {
-      var widget = Marker.genWidgets[key];
-      if ((typeof widget === 'undefined' ? 'undefined' : _typeof(widget)) === 'object') {
-        widget.mark.clear();
+
+  clear() {
+    for( let key in Marker.genWidgets ) {
+      let widget = Marker.genWidgets[ key ]
+      if( typeof widget === 'object' ) {
+        widget.mark.clear()
         //widget.parentNode.removeChild( widget )
       }
     }
 
-    Marker.genWidgets = { dirty: false };
+    Marker.genWidgets = { dirty:false }
   },
 
-
   _process: {
-    ExpressionStatement: function ExpressionStatement(expressionNode, codemirror, track) {
-      Marker._process[expressionNode.expression.type](expressionNode, codemirror, track);
+    ExpressionStatement( expressionNode, codemirror, track ){ 
+      Marker._process[ expressionNode.expression.type ]( expressionNode, codemirror, track )
     },
 
+    AssignmentExpression: function( expressionNode, codemirror, track ) {
+      if( expressionNode.expression.right.type !== 'Literal' && Marker.functions[ expressionNode.expression.right.callee.name ] ) {
 
-    AssignmentExpression: function AssignmentExpression(expressionNode, codemirror, track) {
-      if (expressionNode.expression.right.type !== 'Literal' && Marker.functions[expressionNode.expression.right.callee.name]) {
-
-        Marker.functions[expressionNode.expression.right.callee.name](expressionNode.expression.right, codemirror, track, expressionNode.expression.left.name, expressionNode.verticalOffset, expressionNode.horizontalOffset);
+        Marker.functions[ expressionNode.expression.right.callee.name ]( 
+          expressionNode.expression.right, 
+          codemirror,
+          track,
+          expressionNode.expression.left.name,
+          expressionNode.verticalOffset,
+          expressionNode.horizontalOffset
+        )            
       }
+
     },
 
-    CallExpression: function CallExpression(expressionNode, codemirror, track) {
-      var _Marker$_getCallExpre = Marker._getCallExpressionHierarchy(expressionNode.expression);
-
-      var _Marker$_getCallExpre2 = _slicedToArray(_Marker$_getCallExpre, 3);
-
-      var components = _Marker$_getCallExpre2[0];
-      var depthOfCall = _Marker$_getCallExpre2[1];
-      var index = _Marker$_getCallExpre2[2];
-      var args = expressionNode.expression.arguments;
-      var usesThis = void 0;var targetPattern = void 0;var isTrack = void 0;var method = void 0;var target = void 0;
+    CallExpression( expressionNode, codemirror, track  ) {
+      let [ components, depthOfCall, index ] = Marker._getCallExpressionHierarchy( expressionNode.expression ),
+        args = expressionNode.expression.arguments,
+        usesThis, targetPattern, isTrack, method, target
 
       // if index is passed as argument to .seq call...
-      if (args.length > 2) {
-        index = args[2].value;
-      }
-
+      if( args.length > 2 ) { index = args[ 2 ].value }
+      
       //console.log( "depth of call", depthOfCall, components, index )
-      var valuesPattern = void 0,
-          timingsPattern = void 0,
-          valuesNode = void 0,
-          timingsNode = void 0;
+      let valuesPattern, timingsPattern, valuesNode, timingsNode
 
-      switch (callDepths[depthOfCall]) {
-        case 'SCORE':
-          //console.log( 'score no assignment?', components, expressionNode.expression )
-          if (Marker.functions[expressionNode.expression.callee.name]) {
-            Marker.functions[expressionNode.expression.callee.name](expressionNode.expression, codemirror, track, expressionNode.verticalOffset);
-          }
-          break;
+      switch( callDepths[ depthOfCall ] ) {
+         case 'SCORE':
+           //console.log( 'score no assignment?', components, expressionNode.expression )
+           if( Marker.functions[ expressionNode.expression.callee.name ] ) {
+             Marker.functions[ expressionNode.expression.callee.name ]( expressionNode.expression, codemirror, track, expressionNode.verticalOffset )            
+           }
+           break;
 
-        case 'THIS.METHOD':
-          // also for calls to Score([]).start() 
-          break;
+         case 'THIS.METHOD': // also for calls to Score([]).start() 
+           break;
 
-        case 'THIS.METHOD.SEQ':
-          if (components.includes('tracks')) {
-            //expressionNode.expression.callee.object.object.type !== 'ThisExpression' ) {
-            var objName = expressionNode.expression.callee.object.object.name;
+         case 'THIS.METHOD.SEQ':
+           if( components.includes( 'tracks' ) ) { //expressionNode.expression.callee.object.object.type !== 'ThisExpression' ) {
+             let objName = expressionNode.expression.callee.object.object.name
 
-            track = window[objName];
-            method = track[components[1]][index];
-          } else if (components.includes('this')) {
-            track = Gibber.currentTrack;
-            method = track[components[1]][index];
-          } else {
-            var _objName = expressionNode.expression.callee.object.object.name;
+             track = window[ objName ]
+             method = track[ components[ 1 ] ][ index ]
+           }else if( components.includes( 'this' ) ){
+             track = Gibber.currentTrack
+             method = track[ components[ 1 ] ][ index ]
+           }else{
+             let objName = expressionNode.expression.callee.object.object.name
 
-            track = window[components[0]];
-            method = track[components[1]];
-          }
+             track = window[ components[0] ]
+             method = track[ components[ 1 ] ] 
+           }
 
-          if (!track.markup) {
-            Marker.prepareObject(track);
-          }
+           if( !track.markup ) { Marker.prepareObject( track ) }
 
-          valuesPattern = method.values;
-          timingsPattern = method.timings;
-          valuesNode = args[0];
-          timingsNode = args[1];
+           valuesPattern =  method.values
+           timingsPattern = method.timings
+           valuesNode = args[ 0 ]
+           timingsNode= args[ 1 ]
 
-          valuesPattern.codemirror = timingsPattern.codemirror = codemirror;
+           valuesPattern.codemirror = timingsPattern.codemirror = codemirror 
+          
+           if( valuesNode ) {
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+           }  
+           if( timingsNode ) {
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+           }
 
-          if (valuesNode) {
-            Marker._markPattern[valuesNode.type](valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern);
-          }
-          if (timingsNode) {
-            Marker._markPattern[timingsNode.type](timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern);
-          }
+           break;
 
-          break;
+         case 'THIS.METHOD[ 0 ].SEQ': // will this ever happen??? I guess after it has been sequenced once?
+           isTrack  = trackNames.includes( components[0] )
+           target = null
+           track = window[ components[0] ][ components[1] ]
+           
+           if( !isTrack ) { // not a track! XXX please, please get a better parsing method / rules...
+             target = track
+             track = Gibber.currentTrack
+           }
 
-        case 'THIS.METHOD[ 0 ].SEQ':
-          // will this ever happen??? I guess after it has been sequenced once?
-          isTrack = trackNames.includes(components[0]);
-          target = null;
-          track = window[components[0]][components[1]];
+           valuesPattern =  target === null ? track[ components[2] ][ index ].values : target[ components[2] ].values
+           timingsPattern = target === null ? track[ components[2] ][ index ].timings : target[ components[2] ].timings //track[ components[2] ][ index ].timings
+           valuesNode = args[0]
+           timingsNode = args[1]
 
-          if (!isTrack) {
-            // not a track! XXX please, please get a better parsing method / rules...
-            target = track;
-            track = Gibber.currentTrack;
-          }
+           valuesPattern.codemirror = timingsPattern.codemirror = codemirror
 
-          valuesPattern = target === null ? track[components[2]][index].values : target[components[2]].values;
-          timingsPattern = target === null ? track[components[2]][index].timings : target[components[2]].timings; //track[ components[2] ][ index ].timings
-          valuesNode = args[0];
-          timingsNode = args[1];
+           if( valuesNode ) { 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+           }
+           if( timingsNode ) {
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+           }
 
-          valuesPattern.codemirror = timingsPattern.codemirror = codemirror;
+           break;
 
-          if (valuesNode) {
-            Marker._markPattern[valuesNode.type](valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern);
-          }
-          if (timingsNode) {
-            Marker._markPattern[timingsNode.type](timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern);
-          }
+         case 'THIS.METHOD.VALUES.REVERSE.SEQ':
+           usesThis = components.includes( 'this' )
+           isTrack  = components.includes( 'tracks' )
 
-          break;
+           if( isTrack ) { // XXX this won't ever get called here, right?
+             track = window[ components[0] ][ components[1] ] 
+             targetPattern = track[ components[2] ][ components[3] ]
+             method = targetPattern[ components[4] ]
 
-        case 'THIS.METHOD.VALUES.REVERSE.SEQ':
-          usesThis = components.includes('this');
-          isTrack = components.includes('tracks');
+           }else{
+             track = usesThis ? Gibber.currentTrack : window[ components[0] ],
+             targetPattern = track[ components[1] ][ components[2] ],
+             method = targetPattern[ components[3] ]
+           }
+        
+            
+           valuesPattern = method.values
+           timingsPattern = method.timings
+           valuesNode = args[0]
+           timingsNode = args[1]
 
-          if (isTrack) {
-            // XXX this won't ever get called here, right?
-            track = window[components[0]][components[1]];
-            targetPattern = track[components[2]][components[3]];
-            method = targetPattern[components[4]];
-          } else {
-            track = usesThis ? Gibber.currentTrack : window[components[0]], targetPattern = track[components[1]][components[2]], method = targetPattern[components[3]];
-          }
+           valuesPattern.codemirror = timingsPattern.codemirror = codemirror
+           
+           if( valuesNode ) {
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+           }  
+           if( timingsNode ) {
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+           }
 
-          valuesPattern = method.values;
-          timingsPattern = method.timings;
-          valuesNode = args[0];
-          timingsNode = args[1];
+           break;
 
-          valuesPattern.codemirror = timingsPattern.codemirror = codemirror;
+         case 'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ': // most useful?
+           usesThis = components.includes( 'this' )
+           isTrack  = components.includes( 'tracks' )
+           // tracks['1-Impulse 606'].devices['Impulse']['Global Time']
+           
+           if( isTrack ) {
+             track = window[ components[0] ][ components[1] ] 
+             targetPattern = track[ components[2] ][ components[3] ]
+             method = targetPattern[ components[4] ]
 
-          if (valuesNode) {
-            Marker._markPattern[valuesNode.type](valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern);
-          }
-          if (timingsNode) {
-            Marker._markPattern[timingsNode.type](timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern);
-          }
+           }else{
+             track = usesThis ? Gibber.currentTrack : window[ components[0] ],
+             targetPattern = track[ components[1] ][ index ][ components[3] ],
+             method = targetPattern[ components[4] ]
+           }
 
-          break;
+           valuesPattern =  method.values
+           timingsPattern = method.timings
+           valuesNode = args[ 0 ]
+           timingsNode= args[ 1 ]
+          
+           valuesPattern.codemirror = timingsPattern.codemirror = codemirror
 
-        case 'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ':
-          // most useful?
-          usesThis = components.includes('this');
-          isTrack = components.includes('tracks');
-          // tracks['1-Impulse 606'].devices['Impulse']['Global Time']
+           if( !isTrack ) components.splice( 2,index )
+          
+           if( valuesNode ) {
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+           }
+           if( timingsNode ) {
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+           }
+           break;
+         case 'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ':
+           track = window[ 'tracks' ][ components[ 1 ] ]
 
-          if (isTrack) {
-            track = window[components[0]][components[1]];
-            targetPattern = track[components[2]][components[3]];
-            method = targetPattern[components[4]];
-          } else {
-            track = usesThis ? Gibber.currentTrack : window[components[0]], targetPattern = track[components[1]][index][components[3]], method = targetPattern[components[4]];
-          }
+           components[3] = components[3]
+           valuesPattern =  track[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].values
+           timingsPattern = track[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].timings
+           valuesNode = args[ 0 ]
+           timingsNode= args[ 1 ]
+          
+           valuesPattern.codemirror = timingsPattern.codemirror = codemirror
 
-          valuesPattern = method.values;
-          timingsPattern = method.timings;
-          valuesNode = args[0];
-          timingsNode = args[1];
+           if( valuesNode ) {
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+           }  
+           if( timingsNode ) {
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+           }
+           break;
 
-          valuesPattern.codemirror = timingsPattern.codemirror = codemirror;
-
-          if (!isTrack) components.splice(2, index);
-
-          if (valuesNode) {
-            Marker._markPattern[valuesNode.type](valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern);
-          }
-          if (timingsNode) {
-            Marker._markPattern[timingsNode.type](timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern);
-          }
-          break;
-        case 'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ':
-          track = window['tracks'][components[1]];
-
-          components[3] = components[3];
-          valuesPattern = track[components[2]][components[3]][components[4]][components[5]].values;
-          timingsPattern = track[components[2]][components[3]][components[4]][components[5]].timings;
-          valuesNode = args[0];
-          timingsNode = args[1];
-
-          valuesPattern.codemirror = timingsPattern.codemirror = codemirror;
-
-          if (valuesNode) {
-            Marker._markPattern[valuesNode.type](valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern);
-          }
-          if (timingsNode) {
-            Marker._markPattern[timingsNode.type](timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern);
-          }
-          break;
-
-        default:
-          console.log('default annotation error');
-          break;
+         default:
+           console.log( 'default annotation error' )
+           break;
       }
+    },
+  },
+
+  _createBorderCycleFunction( classNamePrefix, patternObject ) {
+    let modCount = 0,
+        lastBorder = null,
+        lastClassName = null
+    
+    let cycle = function() {
+      let className = '.' + classNamePrefix + '_' +  patternObject.update.currentIndex,
+          border = 'top'
+
+      switch( modCount++ % 4 ) {
+        case 1: border = 'right'; break;
+        case 2: border = 'bottom'; break;
+        case 3: border = 'left'; break;
+      }
+
+      $( className ).add( 'annotation-' + border + '-border' )
+      
+      if( lastBorder )
+        $( className ).remove( 'annotation-' + lastBorder + '-border' )
+      
+      lastBorder = border
+      lastClassName = className
+
+      //console.log( 'cycle idx:', patternObject.idx )
+    }
+
+    cycle.clear = function() {
+      modCount = 1
+      if( lastBorder && lastClassName )
+        $( lastClassName ).remove( 'annotation-' + lastBorder + '-border' )
+      
+      lastBorder = null
+    }
+
+    return cycle
+  },
+
+  _addPatternUpdates( patternObject, className ) {
+    let cycle = Marker._createBorderCycleFunction( className, patternObject )
+    
+    patternObject.update = () => {
+      // if( !patternObject.update.shouldUpdate ) return 
+      cycle() 
     }
   },
 
-  _createBorderCycleFunction: function _createBorderCycleFunction(classNamePrefix, patternObject) {
-    var modCount = 0,
-        lastBorder = null,
-        lastClassName = null;
+  _addPatternFilter( patternObject ) {
+    patternObject.filters.push( ( args ) => {
+      const wait = Utility.beatsToMs( patternObject.nextTime + .5,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
 
-    var cycle = function cycle() {
-      var className = '.' + classNamePrefix + '_' + patternObject.update.currentIndex,
-          border = 'top';
+      let idx = args[ 2 ],
+          shouldUpdate = patternObject.update.shouldUpdate
+        
+      Gibber.Environment.animationScheduler.add( () => {
+        patternObject.update.currentIndex = idx
+        patternObject.update()
+      }, wait ) 
 
-      switch (modCount++ % 4) {
-        case 1:
-          border = 'right';break;
-        case 2:
-          border = 'bottom';break;
-        case 3:
-          border = 'left';break;
-      }
-
-      $(className).add('annotation-' + border + '-border');
-
-      if (lastBorder) $(className).remove('annotation-' + lastBorder + '-border');
-
-      lastBorder = border;
-      lastClassName = className;
-
-      //console.log( 'cycle idx:', patternObject.idx )
-    };
-
-    cycle.clear = function () {
-      modCount = 1;
-      if (lastBorder && lastClassName) $(lastClassName).remove('annotation-' + lastBorder + '-border');
-
-      lastBorder = null;
-    };
-
-    return cycle;
+      return args
+    }) 
   },
-  _addPatternUpdates: function _addPatternUpdates(patternObject, className) {
-    var cycle = Marker._createBorderCycleFunction(className, patternObject);
-
-    patternObject.update = function () {
-      // if( !patternObject.update.shouldUpdate ) return 
-      cycle();
-    };
-  },
-  _addPatternFilter: function _addPatternFilter(patternObject) {
-    patternObject.filters.push(function (args) {
-      var wait = Utility.beatsToMs(patternObject.nextTime + .5, Gibber.Scheduler.bpm); // TODO: should .25 be a variable representing advance amount?
-
-      var idx = args[2],
-          shouldUpdate = patternObject.update.shouldUpdate;
-
-      Gibber.Environment.animationScheduler.add(function () {
-        patternObject.update.currentIndex = idx;
-        patternObject.update();
-      }, wait);
-
-      return args;
-    });
-  },
-
 
   _markPattern: {
-    Literal: function Literal(patternNode, containerNode, components, cm, track) {
-      var index = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-      var patternType = arguments[6];
-      var patternObject = arguments[7];
+    Literal( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+           cssName = className + '_0',
+           marker = cm.markText( start, end, { 
+             'className': cssName + ' annotation-border', 
+             inclusiveLeft: true,
+             inclusiveRight: true
+           })
+       
+       track.markup.textMarkers[ className ] = marker
+       
+       if( track.markup.cssClasses[ className ] === undefined ) track.markup.cssClasses[ className ] = []
 
-      var _Marker$_getNamesAndP = Marker._getNamesAndPosition(patternNode, containerNode, components, index, patternType);
-
-      var _Marker$_getNamesAndP2 = _slicedToArray(_Marker$_getNamesAndP, 3);
-
-      var className = _Marker$_getNamesAndP2[0];
-      var start = _Marker$_getNamesAndP2[1];
-      var end = _Marker$_getNamesAndP2[2];
-      var cssName = className + '_0';
-      var marker = cm.markText(start, end, {
-        'className': cssName + ' annotation-border',
-        inclusiveLeft: true,
-        inclusiveRight: true
-      });
-
-      track.markup.textMarkers[className] = marker;
-
-      if (track.markup.cssClasses[className] === undefined) track.markup.cssClasses[className] = [];
-
-      track.markup.cssClasses[className][index] = cssName;
-
-      Marker._addPatternUpdates(patternObject, className);
-      Marker._addPatternFilter(patternObject);
-
-      patternObject.patternName = className;
-      patternObject._onchange = function () {
-        Marker._updatePatternContents(patternObject, className, track);
-      };
+       track.markup.cssClasses[ className ][ index ] = cssName    
+       
+       Marker._addPatternUpdates( patternObject, className )
+       Marker._addPatternFilter( patternObject )
+       
+       patternObject.patternName = className
+       patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, track ) }
     },
-    BinaryExpression: function BinaryExpression(patternNode, containerNode, components, cm, track) {
-      var index = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-      var patternType = arguments[6];
-      var patternObject = arguments[7];
 
-      // TODO: same as literal, refactor?
-      var _Marker$_getNamesAndP3 = Marker._getNamesAndPosition(patternNode, containerNode, components, index, patternType);
+    BinaryExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
+       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+           cssName = className + '_0',
+           marker = cm.markText(
+             start, 
+             end,
+             { 
+               'className': cssName + ' annotation-border' ,
+               startStyle: 'annotation-no-right-border',
+               endStyle: 'annotation-no-left-border',
+               inclusiveLeft:true,
+               inclusiveRight:true
+             }
+           ) 
+       
+       track.markup.textMarkers[ className ] = marker
+       
+       if( track.markup.cssClasses[ className ] === undefined ) track.markup.cssClasses[ className ] = []
+       track.markup.cssClasses[ className ][ index ] = cssName
 
-      var _Marker$_getNamesAndP4 = _slicedToArray(_Marker$_getNamesAndP3, 3);
+       setTimeout( () => { $( '.' + cssName )[ 1 ].classList.add( 'annotation-no-horizontal-border' ) }, 250 )
+       
+       patternObject.patternName = className
 
-      var className = _Marker$_getNamesAndP4[0];
-      var start = _Marker$_getNamesAndP4[1];
-      var end = _Marker$_getNamesAndP4[2];
-      var cssName = className + '_0';
-      var marker = cm.markText(start, end, {
-        'className': cssName + ' annotation-border',
-        startStyle: 'annotation-no-right-border',
-        endStyle: 'annotation-no-left-border',
-        inclusiveLeft: true,
-        inclusiveRight: true
-      });
-
-      track.markup.textMarkers[className] = marker;
-
-      if (track.markup.cssClasses[className] === undefined) track.markup.cssClasses[className] = [];
-      track.markup.cssClasses[className][index] = cssName;
-
-      setTimeout(function () {
-        $('.' + cssName)[1].classList.add('annotation-no-horizontal-border');
-      }, 250);
-
-      patternObject.patternName = className;
-
-      Marker._addPatternUpdates(patternObject, className);
-      Marker._addPatternFilter(patternObject);
+       Marker._addPatternUpdates( patternObject, className )
+       Marker._addPatternFilter( patternObject )
     },
-    ArrayExpression: function ArrayExpression(patternNode, containerNode, components, cm, track) {
-      var index = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-      var patternType = arguments[6];
-      var patternObject = arguments[7];
 
-      var _Marker$_getNamesAndP5 = Marker._getNamesAndPosition(patternNode, containerNode, components, index, patternType);
+    ArrayExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+      let [ patternName, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+          marker, 
+          count = 0
 
-      var _Marker$_getNamesAndP6 = _slicedToArray(_Marker$_getNamesAndP5, 3);
+      for( let element of patternNode.elements ) {
+        let cssClassName = patternName + '_' + count,
+            elementStart = Object.assign( {}, start ),
+            elementEnd   = Object.assign( {}, end   ),
+            marker
+        
+        elementStart.ch = element.start + containerNode.horizontalOffset
+        elementEnd.ch   = element.end   + containerNode.horizontalOffset
 
-      var patternName = _Marker$_getNamesAndP6[0];
-      var start = _Marker$_getNamesAndP6[1];
-      var end = _Marker$_getNamesAndP6[2];
-      var marker = void 0;
-      var count = 0;
+        if( element.type === 'BinaryExpression' ) {
+          marker = cm.markText( elementStart, elementEnd, { 
+            'className': cssClassName + ' annotation',
+             startStyle: 'annotation-no-right-border',
+             endStyle: 'annotation-no-left-border',
+             inclusiveLeft:true, inclusiveRight:true
+          })
 
-      var _iteratorNormalCompletion4 = true;
-      var _didIteratorError4 = false;
-      var _iteratorError4 = undefined;
-
-      try {
-        var _loop = function _loop() {
-          var element = _step5.value;
-
-          var cssClassName = patternName + '_' + count,
-              elementStart = Object.assign({}, start),
-              elementEnd = Object.assign({}, end),
-              marker = void 0;
-
-          elementStart.ch = element.start + containerNode.horizontalOffset;
-          elementEnd.ch = element.end + containerNode.horizontalOffset;
-
-          if (element.type === 'BinaryExpression') {
-            (function () {
-              marker = cm.markText(elementStart, elementEnd, {
-                'className': cssClassName + ' annotation',
-                startStyle: 'annotation-no-right-border',
-                endStyle: 'annotation-no-left-border',
-                inclusiveLeft: true, inclusiveRight: true
-              });
-
-              var count = 0;
-              var classAdder = function classAdder() {
-                var element = $('.' + cssClassName)[1];
-                if (element !== undefined) {
-                  element.classList.add('annotation-no-horizontal-border');
-                } else {
-                  if (count++ < 4) {
-                    setTimeout(classAdder, 250);
-                  }
-                }
-              };
-
-              setTimeout(classAdder, 250);
-            })();
-          } else {
-            marker = cm.markText(elementStart, elementEnd, {
-              'className': cssClassName + ' annotation',
-              inclusiveLeft: true, inclusiveRight: true
-            });
+          let count = 0
+          let classAdder = () => {
+            let element = $( '.' + cssClassName )[1]
+            if( element !== undefined ) {
+              element.classList.add( 'annotation-no-horizontal-border' ) 
+            } else {
+              if( count++ < 4 ) {
+                setTimeout( classAdder, 250 )
+              }
+            }
           }
 
-          if (track.markup.textMarkers[patternName] === undefined) track.markup.textMarkers[patternName] = [];
-          track.markup.textMarkers[patternName][count] = marker;
+          setTimeout( classAdder, 250 )
 
-          if (track.markup.cssClasses[patternName] === undefined) track.markup.cssClasses[patternName] = [];
-          track.markup.cssClasses[patternName][count] = cssClassName;
-
-          count++;
-        };
-
-        for (var _iterator4 = patternNode.elements[Symbol.iterator](), _step5; !(_iteratorNormalCompletion4 = (_step5 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-          _loop();
+        }else{
+          marker = cm.markText( elementStart, elementEnd, { 
+            'className': cssClassName + ' annotation',
+            inclusiveLeft:true, inclusiveRight:true
+          } )
         }
-      } catch (err) {
-        _didIteratorError4 = true;
-        _iteratorError4 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion4 && _iterator4.return) {
-            _iterator4.return();
-          }
-        } finally {
-          if (_didIteratorError4) {
-            throw _iteratorError4;
-          }
-        }
+
+        if( track.markup.textMarkers[ patternName  ] === undefined ) track.markup.textMarkers[ patternName ] = []
+        track.markup.textMarkers[ patternName ][ count ] = marker
+       
+        if( track.markup.cssClasses[ patternName ] === undefined ) track.markup.cssClasses[ patternName ] = []
+        track.markup.cssClasses[ patternName ][ count ] = cssClassName 
+        
+        count++
       }
+      
+      let highlighted = null,
+          cycle = Marker._createBorderCycleFunction( patternName, patternObject )
+      
+      patternObject.patternType = patternType 
+      patternObject.patternName = patternName
 
-      var highlighted = null,
-          cycle = Marker._createBorderCycleFunction(patternName, patternObject);
+      patternObject.update = () => {
+        let className = '.' + patternName
+        
+        className += '_' + patternObject.update.currentIndex 
 
-      patternObject.patternType = patternType;
-      patternObject.patternName = patternName;
-
-      patternObject.update = function () {
-        var className = '.' + patternName;
-
-        className += '_' + patternObject.update.currentIndex;
-
-        if (patternType === 'timings') {
+        if( patternType === 'timings' ) {
           //console.log( className, highlighted )
         }
 
-        if (highlighted !== className) {
-          if (highlighted) {
-            $(highlighted).remove('annotation-border');
-          }
-          $(className).add('annotation-border');
-          highlighted = className;
-          cycle.clear();
-        } else {
-          cycle();
+        if( highlighted !== className ) {
+          if( highlighted ) { $( highlighted ).remove( 'annotation-border' ) }
+          $( className ).add( 'annotation-border' )
+          highlighted = className
+          cycle.clear()
+        }else{
+          cycle()
         }
-      };
+      }
 
-      patternObject.clear = function () {
-        if (highlighted) {
-          $(highlighted).remove('annotation-border');
-        }
-        cycle.clear();
-      };
+      patternObject.clear = () => {
+        if( highlighted ) { $( highlighted ).remove( 'annotation-border' ) }
+        cycle.clear()
+      }
 
-      Marker._addPatternFilter(patternObject);
-      patternObject._onchange = function () {
-        Marker._updatePatternContents(patternObject, patternName, track);
-      };
+      Marker._addPatternFilter( patternObject )
+      patternObject._onchange = () => { Marker._updatePatternContents( patternObject, patternName, track ) }
     },
-
 
     // CallExpression denotes an array (or other object) that calls a method, like .rnd()
     // could also represent an anonymous function call, like Rndi(19,40)
-    CallExpression: function CallExpression(patternNode, containerNode, components, cm, track) {
-      var index = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-      var patternType = arguments[6];
-      var patternObject = arguments[7];
-
-      var args = Array.prototype.slice.call(arguments, 0);
+    CallExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+      var args = Array.prototype.slice.call( arguments, 0 )
       // console.log( patternNode.callee.type, patternObject )
 
-      if (patternNode.callee.type === 'MemberExpression' && patternNode.callee.object.type === 'ArrayExpression') {
-        args[0] = patternNode.callee.object;
+      if( patternNode.callee.type === 'MemberExpression' && patternNode.callee.object.type === 'ArrayExpression' ) {
+        args[ 0 ] = patternNode.callee.object
 
-        Marker._markPattern.ArrayExpression.apply(null, args);
-      } else if (patternNode.callee.type === 'Identifier') {
+        Marker._markPattern.ArrayExpression.apply( null, args )
+      } else if (patternNode.callee.type === 'Identifier' ) {
         // function like Euclid
-        Marker._markPattern.Identifier.apply(null, args);
+        Marker._markPattern.Identifier.apply( null, args )
       }
     },
-    Identifier: function Identifier(patternNode, containerNode, components, cm, track) {
-      var index = arguments.length <= 5 || arguments[5] === undefined ? 0 : arguments[5];
-      var patternType = arguments[6];
-      var patternObject = arguments[7];
 
+    Identifier( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
       // mark up anonymous functions with comments here... 
-      var _Marker$_getNamesAndP7 = Marker._getNamesAndPosition(patternNode, containerNode, components, index, patternType);
+      let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+          commentStart = end,
+          commentEnd = {},
+          marker = null
+      
+      Object.assign( commentEnd, commentStart )
+      
+      commentEnd.ch += 1
 
-      var _Marker$_getNamesAndP8 = _slicedToArray(_Marker$_getNamesAndP7, 3);
-
-      var className = _Marker$_getNamesAndP8[0];
-      var start = _Marker$_getNamesAndP8[1];
-      var end = _Marker$_getNamesAndP8[2];
-      var commentStart = end;
-      var commentEnd = {};
-      var marker = null;
-
-      Object.assign(commentEnd, commentStart);
-
-      commentEnd.ch += 1;
-
-      marker = cm.markText(commentStart, commentEnd, { className: className });
-
+      marker = cm.markText( commentStart, commentEnd, { className })
+       
       //  if( track.markup.textMarkers[ className  ] === undefined ) track.markup.textMarkers[ className ] = []
       //  track.markup.textMarkers[ className ][ 0 ] = marker
       //  console.log( 'name', patternNode.callee.name )
-      var updateName = typeof patternNode.callee !== 'undefined' ? patternNode.callee.name : patternNode.name;
-      if (Marker.patternUpdates[updateName]) {
-        patternObject.update = Marker.patternUpdates[updateName](patternObject, marker, className, cm, track);
+      let updateName = typeof patternNode.callee !== 'undefined' ? patternNode.callee.name : patternNode.name 
+      if( Marker.patternUpdates[ updateName ] ) {
+        patternObject.update = Marker.patternUpdates[ updateName ]( patternObject, marker, className, cm, track )
       } else {
-        patternObject.update = Marker.patternUpdates.anonymousFunction(patternObject, marker, className, cm, track);
+        patternObject.update = Marker.patternUpdates.anonymousFunction( patternObject, marker, className, cm, track )
       }
-
-      patternObject.patternName = className;
+      
+      patternObject.patternName = className
       // store value changes in array and then pop them every time the annotation is updated
-      patternObject.update.value = [];
+      patternObject.update.value = []
 
-      Marker._addPatternFilter(patternObject);
-    }
+      Marker._addPatternFilter( patternObject )
+    }, 
   },
 
   patternUpdates: {
-    Euclid: function Euclid(patternObject, marker, className, cm, track) {
-      var val = '/* ' + patternObject.values.join('') + ' */',
+    Euclid: ( patternObject, marker, className, cm, track ) => {
+      let val ='/* ' + patternObject.values.join('')  + ' */',
           pos = marker.find(),
-          end = Object.assign({}, pos.to),
+          end = Object.assign( {}, pos.to ),
           annotationStartCh = pos.from.ch + 3,
-          annotationEndCh = annotationStartCh + 1,
-          memberAnnotationStart = Object.assign({}, pos.from),
-          memberAnnotationEnd = Object.assign({}, pos.to),
-          commentMarker = void 0,
-          currentMarker = void 0,
-          chEnd = void 0;
+          annotationEndCh   = annotationStartCh + 1,
+          memberAnnotationStart   = Object.assign( {}, pos.from ),
+          memberAnnotationEnd     = Object.assign( {}, pos.to ),
+          commentMarker,
+          currentMarker, chEnd
 
-      end.ch = pos.from.ch + val.length;
+      end.ch = pos.from.ch + val.length
 
-      pos.to.ch -= 1;
-      cm.replaceRange(val, pos.from, pos.to);
+      pos.to.ch -= 1
+      cm.replaceRange( val, pos.from, pos.to )
 
-      patternObject.commentMarker = cm.markText(pos.from, end, { className: className, atomic: true }); //replacedWith:element })
+      patternObject.commentMarker = cm.markText( pos.from, end, { className, atomic:true }) //replacedWith:element })
 
-      track.markup.textMarkers[className] = {};
+      track.markup.textMarkers[ className ] = {}
+      
+      let mark = () => {
+        memberAnnotationStart.ch = annotationStartCh
+        memberAnnotationEnd.ch   = annotationEndCh
 
-      var mark = function mark() {
-        memberAnnotationStart.ch = annotationStartCh;
-        memberAnnotationEnd.ch = annotationEndCh;
+        for( let i = 0; i < patternObject.values.length; i++ ) {
+          track.markup.textMarkers[ className ][ i ] = cm.markText(
+            memberAnnotationStart,  memberAnnotationEnd,
+            { 'className': `${className}_${i}` }
+          )
 
-        for (var i = 0; i < patternObject.values.length; i++) {
-          track.markup.textMarkers[className][i] = cm.markText(memberAnnotationStart, memberAnnotationEnd, { 'className': className + '_' + i });
-
-          memberAnnotationStart.ch += 1;
-          memberAnnotationEnd.ch += 1;
+          memberAnnotationStart.ch += 1
+          memberAnnotationEnd.ch   += 1
         }
-      };
 
-      mark();
+      }
+      
+      mark()
 
       // XXX: there's a bug when you sequence pattern transformations, and then insert newlines ABOVE the annotation
-      var count = 0,
-          span = void 0,
-          update = void 0,
-          activeSpans = [];
+      let count = 0, span, update, activeSpans = []
 
-      update = function update() {
-        var currentIdx = count++ % patternObject.values.length;
-
-        if (span !== undefined) {
-          span.remove('euclid0');
+      update = () => {
+        let currentIdx = count++ % patternObject.values.length
+        
+        if( span !== undefined ) {
+          span.remove( 'euclid0' )
         }
 
-        var spanName = '.' + className + '_' + currentIdx,
-            currentValue = patternObject.values[currentIdx];
+        let spanName = `.${className}_${currentIdx}`,
+            currentValue = patternObject.values[ currentIdx ]
+ 
+        span = $( spanName )
 
-        span = $(spanName);
-
-        if (currentValue === 1) {
-          span.add('euclid1');
-          activeSpans.push(span);
-          setTimeout(function () {
-            activeSpans.forEach(function (_span) {
-              return _span.remove('euclid1');
-            });
-            activeSpans.length = 0;
-          }, 50);
+        if( currentValue === 1 ) {
+          span.add( 'euclid1' )
+          activeSpans.push( span )
+          setTimeout( ()=> { 
+            activeSpans.forEach( _span => _span.remove( 'euclid1' ) )
+            activeSpans.length = 0 
+          }, 50 )
         }
+        
+        span.add( 'euclid0' )
+      }
 
-        span.add('euclid0');
-      };
-
-      patternObject._onchange = function () {
-        var delay = Utility.beatsToMs(1, Gibber.Scheduler.bpm);
-        Gibber.Environment.animationScheduler.add(function () {
-          for (var i = 0; i < patternObject.values.length; i++) {
-
-            var markerCh = track.markup.textMarkers[className][i],
-                _pos = markerCh.find();
-
-            marker.doc.replaceRange('' + patternObject.values[i], _pos.from, _pos.to);
+      patternObject._onchange = () => {
+        let delay = Utility.beatsToMs( 1,  Gibber.Scheduler.bpm )
+        Gibber.Environment.animationScheduler.add( () => {
+          for( let i = 0; i < patternObject.values.length; i++ ) {
+   
+            let markerCh = track.markup.textMarkers[ className ][ i ],
+                pos = markerCh.find()
+            
+            marker.doc.replaceRange( '' + patternObject.values[ i ], pos.from, pos.to )
           }
-          mark();
-        }, delay);
-      };
+          mark()
+        }, delay ) 
+      }
 
-      patternObject.clear = function () {
-        try {
-          var commentPos = patternObject.commentMarker.find();
-          cm.replaceRange('', commentPos.from, commentPos.to);
-          patternObject.commentMarker.clear();
-        } catch (e) {
-          console.log('euclid annotation error:', e);
+      patternObject.clear = () => {
+        try{
+          let commentPos = patternObject.commentMarker.find()
+          cm.replaceRange( '', commentPos.from, commentPos.to )
+          patternObject.commentMarker.clear()
+        } catch( e ) {
+          console.log( 'euclid annotation error:', e )
         } // yes, I just did that XXX 
-      };
+      }
 
-      return update;
+      return update 
     },
-    anonymousFunction: function anonymousFunction(patternObject, marker, className, cm) {
-      patternObject.commentMarker = marker;
-      var update = function update() {
-        if (!patternObject.commentMarker) return;
-        var patternValue = '' + patternObject.update.value.pop();
+    anonymousFunction: ( patternObject, marker, className, cm ) => {
+      patternObject.commentMarker = marker
+      let update = () => {
+        if( !patternObject.commentMarker ) return
+        let patternValue = '' + patternObject.update.value.pop()
+        
+        if( patternValue.length > 8 ) patternValue = patternValue.slice(0,8) 
 
-        if (patternValue.length > 8) patternValue = patternValue.slice(0, 8);
-
-        var val = '/* ' + patternValue + ' */,',
+        let val ='/* ' + patternValue + ' */,',
             pos = patternObject.commentMarker.find(),
-            end = Object.assign({}, pos.to);
-
+            end = Object.assign( {}, pos.to )
+         
         //pos.from.ch += 1
-        end.ch = pos.from.ch + val.length;
+        end.ch = pos.from.ch + val.length 
         //pos.from.ch += 1
 
-        cm.replaceRange(val, pos.from, pos.to);
+        cm.replaceRange( val, pos.from, pos.to )
+        
 
-        if (patternObject.commentMarker) patternObject.commentMarker.clear();
+        if( patternObject.commentMarker ) patternObject.commentMarker.clear()
 
-        patternObject.commentMarker = cm.markText(pos.from, end, { className: className, atomic: true });
-      };
+        patternObject.commentMarker = cm.markText( pos.from, end, { className, atomic:true })
+      }
 
-      patternObject.clear = function () {
-        try {
-          var commentPos = patternObject.commentMarker.find();
-          commentPos.to.ch -= 1; // XXX wish I didn't have to do this
-          cm.replaceRange('', commentPos.from, commentPos.to);
-          patternObject.commentMarker.clear();
-          delete patternObject.commentMarker;
-        } catch (e) {} // yes, I just did that XXX 
-      };
-      return update;
+      patternObject.clear = () => {
+        try{
+          let commentPos = patternObject.commentMarker.find()
+          commentPos.to.ch -= 1 // XXX wish I didn't have to do this
+          cm.replaceRange( '', commentPos.from, commentPos.to )
+          patternObject.commentMarker.clear()
+          delete patternObject.commentMarker
+        } catch( e ) {} // yes, I just did that XXX 
+      }
+      return update
     }
   },
 
-  functions: {
-    Score: function Score(node, cm, track, objectName) {
-      var vOffset = arguments.length <= 4 || arguments[4] === undefined ? 0 : arguments[4];
-
-      var timelineNodes = node.arguments[0].elements;
+  functions:{
+    Score( node, cm, track, objectName, vOffset=0 ) {
+      let timelineNodes = node.arguments[ 0 ].elements
       //console.log( timelineNodes )
-      track.markup.textMarkers['score'] = [];
+      track.markup.textMarkers[ 'score' ] = []
 
-      for (var i = 0; i < timelineNodes.length; i += 2) {
-        var timeNode = timelineNodes[i],
-            functionNode = timelineNodes[i + 1];
+      for( let i = 0; i < timelineNodes.length; i+=2 ) {
+        let timeNode = timelineNodes[ i ],
+            functionNode = timelineNodes[ i + 1 ]
+            
+        functionNode.loc.start.line += vOffset - 1
+        functionNode.loc.end.line   += vOffset - 1
+        functionNode.loc.start.ch = functionNode.loc.start.column
+        functionNode.loc.end.ch = functionNode.loc.end.column
 
-        functionNode.loc.start.line += vOffset - 1;
-        functionNode.loc.end.line += vOffset - 1;
-        functionNode.loc.start.ch = functionNode.loc.start.column;
-        functionNode.loc.end.ch = functionNode.loc.end.column;
+        let marker = cm.markText( functionNode.loc.start, functionNode.loc.end, { className:`score${i/2}` } )
+        track.markup.textMarkers[ 'score' ][ i/2 ] = marker
 
-        var marker = cm.markText(functionNode.loc.start, functionNode.loc.end, { className: 'score' + i / 2 });
-        track.markup.textMarkers['score'][i / 2] = marker;
       }
 
-      var lastClass = 'score0';
-      $('.' + lastClass).add('scoreCurrentIndex');
+      let lastClass = 'score0'
+      $( '.' + lastClass ).add( 'scoreCurrentIndex' )
       // TODO: global object usage is baaaad methinks?
-      window[objectName].onadvance = function (idx) {
-        $('.' + lastClass).remove('scoreCurrentIndex');
-        lastClass = 'score' + idx;
-        $('.' + lastClass).add('scoreCurrentIndex');
-      };
-    },
-    Steps: function Steps(node, cm, track, objectName) {
-      var vOffset = arguments.length <= 4 || arguments[4] === undefined ? 0 : arguments[4];
-
-      var steps = node.arguments[0].properties;
-
-      track.markup.textMarkers['step'] = [];
-      track.markup.textMarkers['step'].children = [];
-
-      var mark = function mark(_step, _key, _cm, _track) {
-        for (var i = 0; i < _step.value.length; i++) {
-          var pos = { loc: { start: {}, end: {} } };
-          Object.assign(pos.loc.start, _step.loc.start);
-          Object.assign(pos.loc.end, _step.loc.end);
-          pos.loc.start.ch += i;
-          pos.loc.end.ch = pos.loc.start.ch + 1;
-          var posMark = _cm.markText(pos.loc.start, pos.loc.end, { className: 'step_' + _key + '_' + i });
-          _track.markup.textMarkers.step[_key].pattern[i] = posMark;
-        }
-      };
-
-      var _loop2 = function _loop2(key) {
-        var step = steps[key].value;
-
-        if (step && step.value) {
-          (function () {
-            // ensure it is a correctly formed step
-            step.loc.start.line += vOffset - 1;
-            step.loc.end.line += vOffset - 1;
-            step.loc.start.ch = step.loc.start.column + 1;
-            step.loc.end.ch = step.loc.end.column - 1;
-
-            var marker = cm.markText(step.loc.start, step.loc.end, { className: 'step' + key });
-            track.markup.textMarkers.step[key] = marker;
-
-            track.markup.textMarkers.step[key].pattern = [];
-
-            mark(step, key, cm, track);
-
-            var count = 0,
-                span = void 0,
-                _update = void 0,
-                _key = steps[key].key.value,
-                patternObject = window[objectName].seqs[_key].values;
-
-            _update = function update() {
-              var currentIdx = _update.currentIndex; // count++ % step.value.length
-
-              if (span !== undefined) {
-                span.remove('euclid0');
-              }
-
-              var spanName = '.step_' + key + '_' + currentIdx,
-                  currentValue = patternObject.update.value.pop(); //step.value[ currentIdx ]
-
-              span = $(spanName);
-
-              if (currentValue !== Gibber.Seq.DO_NOT_OUTPUT) {
-                span.add('euclid1');
-                setTimeout(function () {
-                  span.remove('euclid1');
-                }, 50);
-              }
-
-              span.add('euclid0');
-            };
-
-            patternObject._onchange = function () {
-              var delay = Utility.beatsToMs(1, Gibber.Scheduler.bpm);
-              Gibber.Environment.animationScheduler.add(function () {
-                marker.doc.replaceRange(patternObject.values.join(''), step.loc.start, step.loc.end);
-                mark(step, key, cm, track);
-              }, delay);
-            };
-
-            patternObject.update = _update;
-            patternObject.update.value = [];
-
-            Marker._addPatternFilter(patternObject);
-          })();
-        }
-      };
-
-      for (var key in steps) {
-        _loop2(key);
+      window[ objectName ].onadvance = ( idx ) => {
+        $( '.' + lastClass ).remove( 'scoreCurrentIndex' )
+        lastClass = `score${idx}`
+        $( '.' + lastClass ).add( 'scoreCurrentIndex' ) 
       }
-    }
+    },
+
+    Steps( node, cm, track, objectName, vOffset=0 ) {
+      let steps = node.arguments[ 0 ].properties
+
+      track.markup.textMarkers[ 'step' ] = []
+      track.markup.textMarkers[ 'step' ].children = []
+
+      let mark = ( _step, _key, _cm, _track ) => {
+        for( let i = 0; i < _step.value.length; i++ ) {
+          let pos = { loc:{ start:{}, end:{}} }
+          Object.assign( pos.loc.start, _step.loc.start )
+          Object.assign( pos.loc.end  , _step.loc.end   )
+          pos.loc.start.ch += i
+          pos.loc.end.ch = pos.loc.start.ch + 1
+          let posMark = _cm.markText( pos.loc.start, pos.loc.end, { className:`step_${_key}_${i}` })
+          _track.markup.textMarkers.step[ _key ].pattern[ i ] = posMark
+        }
+      }
+
+      for( let key in steps ) {
+        let step = steps[ key ].value
+
+        if( step && step.value ) { // ensure it is a correctly formed step
+          step.loc.start.line += vOffset - 1
+          step.loc.end.line   += vOffset - 1
+          step.loc.start.ch   = step.loc.start.column + 1
+          step.loc.end.ch     = step.loc.end.column - 1
+          
+          let marker = cm.markText( step.loc.start, step.loc.end, { className:`step${key}` } )
+          track.markup.textMarkers.step[ key ] = marker
+
+          track.markup.textMarkers.step[ key ].pattern = []
+          
+          mark( step, key, cm, track )
+
+          let count = 0, span, update,
+              _key = steps[ key ].key.value,
+              patternObject = window[ objectName ].seqs[ _key ].values
+
+          update = () => {
+            let currentIdx = update.currentIndex // count++ % step.value.length
+            
+            if( span !== undefined ) {
+              span.remove( 'euclid0' )
+            }
+            
+            let spanName = `.step_${key}_${currentIdx}`,
+                currentValue = patternObject.update.value.pop() //step.value[ currentIdx ]
+            
+            span = $( spanName )
+
+            if( currentValue !== Gibber.Seq.DO_NOT_OUTPUT ) {
+              span.add( 'euclid1' )
+              setTimeout( ()=> { span.remove( 'euclid1' ) }, 50 )
+            }
+            
+            span.add( 'euclid0' )
+          }
+
+          patternObject._onchange = () => {
+            let delay = Utility.beatsToMs( 1,  Gibber.Scheduler.bpm )
+            Gibber.Environment.animationScheduler.add( () => {
+              marker.doc.replaceRange( patternObject.values.join(''), step.loc.start, step.loc.end )
+              mark( step, key, cm, track )
+            }, delay ) 
+          }
+
+          patternObject.update = update
+          patternObject.update.value = []
+
+          Marker._addPatternFilter( patternObject )
+        }
+      }
+
+    },  
   },
 
-  _updatePatternContents: function _updatePatternContents(pattern, patternClassName, track) {
-    var marker = void 0,
-        pos = void 0,
-        newMarker = void 0;
 
-    if (pattern.values.length > 1) {
+  _updatePatternContents( pattern, patternClassName, track ) {
+    let marker, pos, newMarker
+
+    if( pattern.values.length > 1 ) {
       // array of values
-      for (var i = 0; i < pattern.values.length; i++) {
-        marker = track.markup.textMarkers[patternClassName][i];
-        pos = marker.find();
+      for( let i = 0; i < pattern.values.length; i++) {
+        marker = track.markup.textMarkers[ patternClassName ][ i ]
+        pos = marker.find()
 
-        marker.doc.replaceRange('' + pattern.values[i], pos.from, pos.to);
+        marker.doc.replaceRange( '' + pattern.values[ i ], pos.from, pos.to )
       }
-    } else {
+    }else{
       // single literal
-      marker = track.markup.textMarkers[patternClassName];
-      pos = marker.find();
+      marker = track.markup.textMarkers[ patternClassName ]
+      pos = marker.find()
 
-      marker.doc.replaceRange('' + pattern.values[0], pos.from, pos.to);
+      marker.doc.replaceRange( '' + pattern.values[ 0 ], pos.from, pos.to )
       // newMarker = marker.doc.markText( pos.from, pos.to, { className: patternClassName + ' annotation-border' } )
       // track.markup.textMarkers[ patternClassName ] = newMarker
     }
   },
-  _getNamesAndPosition: function _getNamesAndPosition(patternNode, containerNode, components) {
-    var index = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
-    var patternType = arguments[4];
 
-    var start = patternNode.loc.start,
-        end = patternNode.loc.end,
-        className = components.slice(0),
-        cssName = null,
-        marker = void 0;
+  _getNamesAndPosition( patternNode, containerNode, components, index=0, patternType ) {
+    let start   = patternNode.loc.start,
+        end     = patternNode.loc.end,
+        className = components.slice( 0 ),
+        cssName   = null,
+        marker
 
-    if (className.includes('this')) className.shift();
+     if( className.includes( 'this' ) ) className.shift()
 
-    if (className.includes('tracks')) {
-      //className = [ 'tracks', components[1] ].concat( components.slice( 2, components.length - 1 ) )
-      if (index !== 0) {
-        className.splice(3, 0, index);
-      }
-    } else {
-      if (index !== 0) {
-        className.splice(1, 0, index); // insert index into array
-      }
-    }
+     if( className.includes( 'tracks' ) ) {
+       //className = [ 'tracks', components[1] ].concat( components.slice( 2, components.length - 1 ) )
+       if( index !== 0 ) {
+         className.splice( 3, 0, index )
+       }
+     }else{
+       if( index !== 0 ) {
+         className.splice( 1, 0, index ) // insert index into array
+       }
+     }
 
-    className.push(patternType);
-    className = className.join('_');
+     className.push( patternType )
+     className = className.join( '_' )
 
-    var expr = /\[\]/gi;
-    className = className.replace(expr, '');
+     let expr = /\[\]/gi
+     className = className.replace( expr, '' )
 
-    expr = /\-/gi;
-    className = className.replace(expr, '_');
+     expr = /\-/gi
+     className = className.replace( expr, '_' )
 
-    expr = /\ /gi;
-    className = className.replace(expr, '_');
+     expr = /\ /gi
+     className = className.replace( expr, '_' )
 
-    start.line += containerNode.verticalOffset - 1;
-    end.line += containerNode.verticalOffset - 1;
-    start.ch = start.column + containerNode.horizontalOffset;
-    end.ch = end.column + containerNode.horizontalOffset;
+     start.line += containerNode.verticalOffset - 1
+     end.line   += containerNode.verticalOffset - 1
+     start.ch   = start.column + containerNode.horizontalOffset
+     end.ch     = end.column + containerNode.horizontalOffset
 
-    return [className, start, end];
+     return [ className, start, end ]
   },
-  _getCallExpressionHierarchy: function _getCallExpressionHierarchy(expr) {
-    var callee = expr.callee,
+
+  _getCallExpressionHierarchy( expr ) {
+    let callee = expr.callee,
         obj = callee.object,
         components = [],
         index = 0,
-        depth = 0;
+        depth = 0
 
-    while (obj !== undefined) {
-      var pushValue = null;
+    while( obj !== undefined ) {
+      let pushValue = null
 
-      if (obj.type === 'ThisExpression') {
-        pushValue = 'this';
-      } else if (obj.property && obj.property.name) {
-        pushValue = obj.property.name;
-      } else if (obj.property && obj.property.type === 'Literal') {
-        // array index
-        pushValue = obj.property.value;
+      if( obj.type === 'ThisExpression' ) {
+        pushValue = 'this' 
+      }else if( obj.property && obj.property.name ){
+        pushValue = obj.property.name
+      }else if( obj.property && obj.property.type === 'Literal' ){ // array index
+        pushValue = obj.property.value
 
         // don't fall for tracks[0] etc.
-        if (depth > 1) index = obj.property.value;
-      } else if (obj.type === 'Identifier') {
-        pushValue = obj.name;
+        if( depth > 1 ) index = obj.property.value
+      }else if( obj.type === 'Identifier' ) {
+        pushValue = obj.name
       }
+      
+      if( pushValue !== null ) components.push( pushValue ) 
 
-      if (pushValue !== null) components.push(pushValue);
-
-      depth++;
-      obj = obj.object;
+      depth++
+      obj = obj.object
     }
+    
+    components.reverse()
+    
+    if( callee.property )
+      components.push( callee.property.name )
 
-    components.reverse();
+    return [ components, depth, index ]
+  },
 
-    if (callee.property) components.push(callee.property.name);
+}
 
-    return [components, depth, index];
-  }
-};
+module.exports = Marker
 
-module.exports = Marker;
 },{"./utility.js":94,"acorn":96}],78:[function(require,module,exports){
-'use strict';
+let Gibber = null
 
-var Gibber = null;
-
-var Communication = {
+let Communication = {
   webSocketPort: 8081, // default?
   socketInitialized: false,
   connectMsg: null,
   debug: {
-    input: false,
-    output: false
+    input:false,
+    output:false
+  },
+  
+  init( _Gibber ) { 
+    Gibber = _Gibber
+    this.createWebSocket()
+    this.send = this.send.bind( Communication )
   },
 
-  init: function init(_Gibber) {
-    Gibber = _Gibber;
-    this.createWebSocket();
-    this.send = this.send.bind(Communication);
-  },
-  createWebSocket: function createWebSocket() {
-    var _this = this;
+  createWebSocket() {
+    if ( this.connected ) return
 
-    if (this.connected) return;
+    if ( 'WebSocket' in window ) {
+      //Gibber.log( 'Connecting' , this.querystring.host, this.querystring.port )
+      if( this.connectMsg === null ) { 
+        this.connectMsg = Gibber.log( 'connecting' )
+      }else{
+        this.connectMsg.innerText += '.'
+      }
 
-    if ('WebSocket' in window) {
-      (function () {
-        //Gibber.log( 'Connecting' , this.querystring.host, this.querystring.port )
-        if (_this.connectMsg === null) {
-          _this.connectMsg = Gibber.log('connecting');
-        } else {
-          _this.connectMsg.innerText += '.';
+      let host = this.querystring.host || '127.0.0.1',
+          port = this.querystring.port || '8081',
+          address = "ws://" + host + ":" + port
+      
+      Gibber.log( "ADDRESS", address )
+      this.wsocket = new WebSocket( address )
+      
+      this.wsocket.onopen = function(ev) {        
+        //Gibber.log( 'CONNECTED to ' + address )
+        Gibber.log('gibberwocky is ready to burble.')
+        this.connected = true
+        
+        Gibber.Live.init()
+        // cancel the auto-reconnect task:
+        if ( this.connectTask !== undefined ) clearTimeout( this.connectTask )
+          
+        // apparently this first reply is necessary
+        this.wsocket.send( 'update on' )
+      }.bind( Communication )
+
+      this.wsocket.onclose = function(ev) {
+        if( this.connected ) {
+          Gibber.log( 'disconnected from ' + address )
+          this.connectMsg = null
+          this.connected = false
         }
 
-        var host = _this.querystring.host || '127.0.0.1',
-            port = _this.querystring.port || '8081',
-            address = "ws://" + host + ":" + port;
+        // set up an auto-reconnect task:
+        this.connectTask = setTimeout( this.createWebSocket.bind( Communication ) , 1000 )
+      }.bind( Communication )
 
-        Gibber.log("ADDRESS", address);
-        _this.wsocket = new WebSocket(address);
+      this.wsocket.onmessage = function( ev ) {
+        //Gibber.log('msg:', ev )
+        this.handleMessage( ev )
+      }.bind( Communication )
 
-        _this.wsocket.onopen = function (ev) {
-          //Gibber.log( 'CONNECTED to ' + address )
-          Gibber.log('gibberwocky is ready to burble.');
-          this.connected = true;
+      this.wsocket.onerror = function( ev ) {
+        Gibber.log( 'WebSocket error' )
+      }.bind( Communication )
 
-          Gibber.Live.init();
-          // cancel the auto-reconnect task:
-          if (this.connectTask !== undefined) clearTimeout(this.connectTask);
-
-          // apparently this first reply is necessary
-          this.wsocket.send('update on');
-        }.bind(Communication);
-
-        _this.wsocket.onclose = function (ev) {
-          if (this.connected) {
-            Gibber.log('disconnected from ' + address);
-            this.connectMsg = null;
-            this.connected = false;
-          }
-
-          // set up an auto-reconnect task:
-          this.connectTask = setTimeout(this.createWebSocket.bind(Communication), 1000);
-        }.bind(Communication);
-
-        _this.wsocket.onmessage = function (ev) {
-          //Gibber.log('msg:', ev )
-          this.handleMessage(ev);
-        }.bind(Communication);
-
-        _this.wsocket.onerror = function (ev) {
-          Gibber.log('WebSocket error');
-        }.bind(Communication);
-      })();
     } else {
-      post('WebSockets are not available in this browser!!!');
+      post( 'WebSockets are not available in this browser!!!' );
     }
+  
   },
-
 
   callbacks: {},
 
-  count: 0,
+  count:0,
 
-  handleMessage: function handleMessage(_msg) {
-    var id = void 0,
-        key = void 0,
-        data = void 0,
-        msg = void 0;
+  handleMessage( _msg ) {
+    let id, key, data, msg
+    
+    if( _msg.data.charAt( 0 ) === '{' ) {
+      data = _msg.data
+      key = null
+      if( Communication.callbacks.scene ) {
+		Communication.callbacks.scene( JSON.parse( data ) )
+	  }
+    }else if( _msg.data.includes( 'snapshot' ) ) {
+      data = _msg.data.substr( 9 ).split(' ')
+      for ( let i = 0; i < data.length; i += 2 ) {
+        let param_id = data[ i ]
+        let param_value = data[ i+1 ] 
 
-    if (_msg.data.charAt(0) === '{') {
-      data = _msg.data;
-      key = null;
-      if (Communication.callbacks.scene) {
-        Communication.callbacks.scene(JSON.parse(data));
-      }
-    } else if (_msg.data.includes('snapshot')) {
-      data = _msg.data.substr(9).split(' ');
-      for (var i = 0; i < data.length; i += 2) {
-        var param_id = data[i];
-        var param_value = data[i + 1];
-
-        if (param_value < 0) {
-          param_value = 0;
-        } else if (param_value > 1) {
-          param_value = 1;
+        if( param_value < 0 ) {
+          param_value = 0
+        }else if( param_value > 1 ) {
+          param_value = 1
         }
-
-        Gibber.Environment.codeMarkup.updateWidget(param_id, 1 - param_value);
+          
+        Gibber.Environment.codeMarkup.updateWidget( param_id, 1 - param_value )
       }
 
-      return;
-    } else {
-      msg = _msg.data.split(' ');
-      id = msg[0];
-      key = msg[1];
+      return
+    }else{
+      msg = _msg.data.split( ' ' )
+      id = msg[ 0 ]
+      key = msg[ 1 ]
 
-      if (key === 'err') {
-        data = msg.slice(2).join(' ');
-      } else {
-        data = msg[2];
+      if( key === 'err' ) {
+        data = msg.slice( 2 ).join( ' ' )
+      }else{
+        data = msg[ 2 ]
+      }
+    }
+    
+    if( id !== undefined ) return
+
+    if( Communication.debug.input ) {
+      if( id !== undefined ) { 
+        Gibber.log( 'debug.input:', id, key, data )
+      }else{
+        Gibber.log( 'debug.input (obj):', JSON.parse( data ) )
       }
     }
 
-    if (id !== undefined) return;
-
-    if (Communication.debug.input) {
-      if (id !== undefined) {
-        Gibber.log('debug.input:', id, key, data);
-      } else {
-        Gibber.log('debug.input (obj):', JSON.parse(data));
-      }
-    }
-
-    switch (key) {
-      case 'seq':
-        if (data === undefined) {
-          console.log('faulty ws seq message', _msg.data);
-        } else {
-          Gibber.Scheduler.seq(data);
+    switch( key ) {
+      case 'seq' :
+        if( data === undefined ) {
+          console.log( 'faulty ws seq message', _msg.data )
+        }else{
+          Gibber.Scheduler.seq( data );
         }
         break;
 
-      case 'clr':
-        Gibber.Environment.clearConsole();
+      case 'clr' :
+        Gibber.Environment.clearConsole()
         break;
 
-      case 'bpm':
-        Gibber.Scheduler.bpm = parseFloat(data);
+      case 'bpm' :
+        Gibber.Scheduler.bpm = parseFloat( data )
         break;
 
       case 'err':
-        Gibber.Environment.error(data);
+        Gibber.Environment.error( data )
         break;
 
       default:
         break;
     }
   },
-  send: function send(code) {
-    if (Communication.connected) {
-      if (Communication.debug.output) Gibber.log('beat:', Gibber.Scheduler.currentBeat, 'msg:', code);
-      Communication.wsocket.send(code);
+
+  send( code ) {
+    if( Communication.connected ) {
+      if( Communication.debug.output ) Gibber.log( 'beat:', Gibber.Scheduler.currentBeat, 'msg:', code  )
+      Communication.wsocket.send( code )
     }
   },
 
-
-  querystring: null
-};
-
-var qstr = window.location.search,
-    query = {},
-    a = qstr.substr(1).split('&');
-
-for (var i = 0; i < a.length; i++) {
-  var b = a[i].split('=');
-  query[decodeURIComponent(b[0])] = decodeURIComponent(b[1] || '');
+  querystring : null,
 }
 
-Communication.querystring = query;
+let qstr = window.location.search,
+    query = {},
+    a = qstr.substr( 1 ).split( '&' )
 
-module.exports = Communication;
+for ( let i = 0; i < a.length; i++ ) {
+  let b = a[ i ].split( '=' )
+  query[ decodeURIComponent( b[0]) ] = decodeURIComponent( b[1] || '' )
+}
+
+Communication.querystring =  query
+
+module.exports = Communication
+
 },{}],79:[function(require,module,exports){
-'use strict';
-
 // singleton 
-var Gibber = null,
-    CodeMirror = require('codemirror');
+let Gibber = null,
+    CodeMirror = require( 'codemirror' )
 
-require('../node_modules/codemirror/mode/javascript/javascript.js');
-require('../node_modules/codemirror/addon/edit/matchbrackets.js');
-require('../node_modules/codemirror/addon/edit/closebrackets.js');
-require('../node_modules/codemirror/addon/hint/show-hint.js');
-require('../node_modules/codemirror/addon/hint/javascript-hint.js');
+require( '../node_modules/codemirror/mode/javascript/javascript.js' )
+require( '../node_modules/codemirror/addon/edit/matchbrackets.js' )
+require( '../node_modules/codemirror/addon/edit/closebrackets.js' )
+require( '../node_modules/codemirror/addon/hint/show-hint.js' )
+require( '../node_modules/codemirror/addon/hint/javascript-hint.js' )
 
-require('./tabs-standalone.microlib-latest.js');
+require( './tabs-standalone.microlib-latest.js' )
 
-var Environment = {
-  codeMarkup: require('./codeMarkup.js'),
+let Environment = {
+  codeMarkup: require( './codeMarkup.js' ),
   debug: false,
   _codemirror: CodeMirror,
-  animationScheduler: require('./animationScheduler.js'),
-  lomView: require('./lomView.js'),
-  consoleDiv: null,
-  consoleList: null,
+  animationScheduler: require( './animationScheduler.js' ),
+  lomView: require( './lomView.js' ),
+  consoleDiv:null,
+  consoleList:null,
 
-  init: function init(gibber) {
-    Gibber = gibber;
+  init( gibber ) {
+    Gibber = gibber
 
-    this.createCodeMirror();
-    this.createSidePanel();
-    this.setupSplit();
-    this.sidebar = document.querySelector('#sidebar');
-    this.sidebar.isVisible = 1;
+    this.createCodeMirror()   
+    this.createSidePanel()
+    this.setupSplit()
+    this.sidebar = document.querySelector( '#sidebar' )
+    this.sidebar.isVisible = 1
     //this.lomView.init( Gibber )
-    this.animationScheduler.init();
-    this.editorWidth = document.querySelector('#editor').style.width;
+    this.animationScheduler.init()
+    this.editorWidth = document.querySelector( '#editor' ).style.width
   },
-  createSidePanel: function createSidePanel() {
-    this.tabs = new ML.Tabs('#tabs');
 
-    this.createConsole();
-    this.createDemoList();
+  createSidePanel() {
+    this.tabs = new ML.Tabs( '#tabs' )
+
+    this.createConsole()
+    this.createDemoList()
   },
-  setupSplit: function setupSplit() {
-    var splitDiv = document.querySelector('#splitBar'),
-        editor = document.querySelector('#editor'),
-        sidebar = document.querySelector('#sidebar'),
-        mousemove = void 0,
-        _mouseup = void 0;
+  
+  setupSplit() {
+    let splitDiv = document.querySelector( '#splitBar' ),
+        editor   = document.querySelector( '#editor'   ),
+        sidebar  = document.querySelector( '#sidebar'  ),
+        mousemove, mouseup
 
-    _mouseup = function mouseup(evt) {
-      window.removeEventListener('mousemove', mousemove);
-      window.removeEventListener('mouseup', _mouseup);
-    };
+    mouseup = evt => {
+      window.removeEventListener( 'mousemove', mousemove )
+      window.removeEventListener( 'mouseup', mouseup )
+    }
 
-    mousemove = function mousemove(evt) {
-      var splitPos = evt.clientX;
+    mousemove = evt => {
+      let splitPos = evt.clientX
 
-      editor.style.width = splitPos + 'px';
-      sidebar.style.left = splitPos + 'px';
-      sidebar.style.width = window.innerWidth - splitPos + 'px';
-    };
+      editor.style.width = splitPos + 'px'
+      sidebar.style.left = splitPos  + 'px'
+      sidebar.style.width = (window.innerWidth - splitPos) + 'px'
+    }
 
-    splitDiv.addEventListener('mousedown', function (evt) {
-      window.addEventListener('mousemove', mousemove);
-      window.addEventListener('mouseup', _mouseup);
-    });
+    splitDiv.addEventListener( 'mousedown', evt => {
+      window.addEventListener( 'mousemove', mousemove )
+      window.addEventListener( 'mouseup', mouseup )
+    })
+
   },
-  createCodeMirror: function createCodeMirror() {
-    CodeMirror.keyMap.gibber = this.keymap;
-    this.codemirror = CodeMirror(document.querySelector('#editor'), {
-      mode: 'javascript',
-      keyMap: 'gibber',
-      autofocus: true,
+
+  createCodeMirror() {
+    CodeMirror.keyMap.gibber = this.keymap
+    this.codemirror = CodeMirror( document.querySelector('#editor'), {
+      mode:'javascript', 
+      keyMap:'gibber',
+      autofocus:true, 
       value: Gibber.Examples.default,
       matchBrackets: true,
       autoCloseBrackets: true,
-      extraKeys: { "Ctrl-Space": "autocomplete" }
-    });
-    this.codemirror.setSize(null, '100%');
+      extraKeys: {"Ctrl-Space": "autocomplete"},
+      //theme:'the-matrix'
+    })
+    this.codemirror.setSize( null, '100%' ) 
   },
-  createConsole: function createConsole() {
 
+  createConsole() {
+    
     //this.console = //CodeMirror( document.querySelector('#console'), { mode:'javascript', autofocus:false, lineWrapping:true })
     //this.console.setSize( null, '100%' )
 
-    var list = document.createElement('ul');
+    let list = document.createElement( 'ul' )
 
-    list.setAttribute('id', 'console_list');
+    list.setAttribute( 'id', 'console_list' )
 
-    Environment.consoleList = list;
-    Environment.consoleDiv = document.querySelector('#console');
+    Environment.consoleList = list
+    Environment.consoleDiv = document.querySelector( '#console' )
 
-    Environment.consoleDiv.appendChild(list);
-
-    Environment.overrideError();
+    Environment.consoleDiv.appendChild( list )
+    
+    Environment.overrideError()
   },
-  overrideError: function overrideError() {
-    console.__error = console.error;
-    console.error = function () {
-      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
 
-      Gibber.Environment.error.apply(null, args);
-      console.__error.apply(console, args);
-    };
-  },
-  replaceError: function replaceError() {
-    console.error = console.__error;
-  },
-  createDemoList: function createDemoList() {
-    var container = document.querySelector('#demos'),
-        list = document.createElement('ul');
-
-    var _loop = function _loop(demoName) {
-      var li = document.createElement('li'),
-          txt = Gibber.Examples[demoName];
-
-      li.innerText = demoName;
-
-      li.addEventListener('click', function () {
-        Environment.codemirror.setValue(txt);
-      });
-
-      list.appendChild(li);
-    };
-
-    for (var demoName in Gibber.Examples) {
-      _loop(demoName);
+  overrideError() {
+    console.__error = console.error
+    console.error = function(...args) {
+      Gibber.Environment.error.apply( null, args )
+      console.__error.apply( console, args )
     }
-
-    container.innerHTML = '';
-    container.appendChild(list);
   },
-  log: function log() {
-    for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-      args[_key2] = arguments[_key2];
+
+  replaceError() {
+    console.error = console.__error
+  },
+
+  createDemoList() {
+    let container = document.querySelector('#demos'),
+        list = document.createElement( 'ul' )
+
+    for( let demoName in Gibber.Examples ) {
+      let li = document.createElement( 'li' ),
+          txt = Gibber.Examples[ demoName ]
+      
+      li.innerText = demoName 
+
+      li.addEventListener( 'click', () => {
+        Environment.codemirror.setValue( txt )
+      })
+      
+      list.appendChild( li )
     }
-
-    var consoleItem = Environment.createConsoleItem(args);
-    Environment.consoleList.appendChild(consoleItem);
-    consoleItem.scrollIntoView();
-
-    return consoleItem;
-  },
-  error: function error() {
-    for (var _len3 = arguments.length, args = Array(_len3), _key3 = 0; _key3 < _len3; _key3++) {
-      args[_key3] = arguments[_key3];
-    }
-
-    var consoleItem = Environment.createConsoleItem(args);
-
-    consoleItem.setAttribute('class', 'console_error');
-
-    Environment.consoleList.appendChild(consoleItem);
-    consoleItem.scrollIntoView();
-  },
-  createConsoleItem: function createConsoleItem(args) {
-    var li = document.createElement('li');
-    li.innerText = args.join(' ');
-
-    return li;
-  },
-  clearConsole: function clearConsole() {
-    document.querySelector('#console_list').innerHTML = '';
+    
+    container.innerHTML = ''
+    container.appendChild( list )
   },
 
+  log( ...args ) {
+    let consoleItem = Environment.createConsoleItem( args )
+    Environment.consoleList.appendChild( consoleItem )
+    consoleItem.scrollIntoView()
 
-  keymap: {
-    fallthrough: 'default',
+    return consoleItem
+  },
 
-    'Ctrl-Enter': function CtrlEnter(cm) {
+  error( ...args ) {
+    let consoleItem = Environment.createConsoleItem( args )
+    
+    consoleItem.setAttribute( 'class', 'console_error' )
+
+    Environment.consoleList.appendChild( consoleItem )
+    consoleItem.scrollIntoView()
+  },
+  
+  createConsoleItem( args ) {
+    let li = document.createElement( 'li' )
+    li.innerText = args.join( ' ' )
+
+    return li
+  },
+
+  clearConsole() {
+    document.querySelector( '#console_list' ).innerHTML = ''
+  },
+
+  keymap : {
+    fallthrough:'default',
+
+    'Ctrl-Enter'( cm ) {
       try {
-        (function () {
-          var selectedCode = Environment.getSelectionCodeColumn(cm, false);
+        let selectedCode = Environment.getSelectionCodeColumn( cm, false )
 
-          Environment.flash(cm, selectedCode.selection);
+        Environment.flash( cm, selectedCode.selection )
+        
+        let func = new Function( selectedCode.code ),
+            markupFunction = () => { 
+              Environment.codeMarkup.process( 
+                selectedCode.code, 
+                selectedCode.selection, 
+                cm, 
+                Gibber.currentTrack 
+              ) 
+            }
+        
+        markupFunction.origin  = func
 
-          var func = new Function(selectedCode.code),
-              markupFunction = function markupFunction() {
-            Environment.codeMarkup.process(selectedCode.code, selectedCode.selection, cm, Gibber.currentTrack);
-          };
-
-          markupFunction.origin = func;
-
-          if (!Environment.debug) {
-            Gibber.Scheduler.functionsToExecute.push(func);
-            Gibber.Scheduler.functionsToExecute.push(markupFunction);
-          } else {
-            func();
-            markupFunction();
-          }
-        })();
+        if( !Environment.debug ) {
+          Gibber.Scheduler.functionsToExecute.push( func );
+          Gibber.Scheduler.functionsToExecute.push( markupFunction  )
+        }else{
+          func()
+          markupFunction()
+        }
       } catch (e) {
-        console.log(e);
-        Environment.log('ERROR', e);
+        console.log( e )
+        Environment.log( 'ERROR', e )
       }
     },
-    'Alt-Enter': function AltEnter(cm) {
+    'Alt-Enter'( cm ) {
       try {
-        (function () {
-          var selectedCode = Environment.getSelectionCodeColumn(cm, true);
+        let selectedCode = Environment.getSelectionCodeColumn( cm, true )
 
-          Environment.flash(cm, selectedCode.selection);
+        Environment.flash( cm, selectedCode.selection )
+        
+        let func = new Function( selectedCode.code ),
+            markupFunction = () => { 
+              Environment.codeMarkup.process( 
+                selectedCode.code, 
+                selectedCode.selection, 
+                cm, 
+                Gibber.currentTrack 
+              ) 
+            }
+        
+        markupFunction.origin  = func
 
-          var func = new Function(selectedCode.code),
-              markupFunction = function markupFunction() {
-            Environment.codeMarkup.process(selectedCode.code, selectedCode.selection, cm, Gibber.currentTrack);
-          };
-
-          markupFunction.origin = func;
-
-          if (!Environment.debug) {
-            Gibber.Scheduler.functionsToExecute.push(func);
-            Gibber.Scheduler.functionsToExecute.push(markupFunction);
-          } else {
-            func();
-            markupFunction();
-          }
-        })();
+        if( !Environment.debug ) {
+          Gibber.Scheduler.functionsToExecute.push( func );
+          Gibber.Scheduler.functionsToExecute.push( markupFunction  )
+        }else{
+          func()
+          markupFunction()
+        }
       } catch (e) {
-        console.log(e);
-        Environment.log('ERROR', e);
+        console.log( e )
+        Environment.log( 'ERROR', e )
       }
     },
-    'Ctrl-.': function Ctrl(cm) {
-      Gibber.clear();
-      Gibber.log('All sequencers stopped.');
+    'Ctrl-.'( cm ) {
+      Gibber.clear()
+      Gibber.log( 'All sequencers stopped.' )
     },
-    'Shift-Ctrl-C': function ShiftCtrlC(cm) {
-      Environment.sidebar.isVisible = !Environment.sidebar.isVisible;
-      var editor = document.querySelector('#editor');
-      if (!Environment.sidebar.isVisible) {
-        Environment.editorWidth = editor.style.width;
-        editor.style.width = '100%';
-      } else {
-        editor.style.width = Environment.editorWidth;
+    'Shift-Ctrl-C'( cm ) {
+      Environment.sidebar.isVisible = !Environment.sidebar.isVisible
+      let editor = document.querySelector( '#editor' )
+      if( !Environment.sidebar.isVisible ) {
+        Environment.editorWidth = editor.style.width
+        editor.style.width = '100%'
+      }else{
+        editor.style.width = Environment.editorWidth
       }
 
-      Environment.sidebar.style.display = Environment.sidebar.isVisible ? 'block' : 'none';
+      Environment.sidebar.style.display = Environment.sidebar.isVisible ? 'block' : 'none'
     }
   },
 
-  getSelectionCodeColumn: function getSelectionCodeColumn(cm, findBlock) {
-    var pos = cm.getCursor(),
-        text = null;
+ 	getSelectionCodeColumn( cm, findBlock ) {
+		let pos = cm.getCursor(), 
+				text = null
+        
+  	if( !findBlock ) {
+      text = cm.getDoc().getSelection()
 
-    if (!findBlock) {
-      text = cm.getDoc().getSelection();
-
-      if (text === "") {
-        text = cm.getLine(pos.line);
-      } else {
-        pos = { start: cm.getCursor('start'), end: cm.getCursor('end') };
+      if ( text === "") {
+        text = cm.getLine( pos.line )
+      }else{
+        pos = { start: cm.getCursor('start'), end: cm.getCursor('end') }
         //pos = null
       }
-    } else {
-      var startline = pos.line,
+    }else{
+      let startline = pos.line, 
           endline = pos.line,
-          pos1 = void 0,
-          pos2 = void 0,
-          sel = void 0;
+          pos1, pos2, sel
+    
+      while ( startline > 0 && cm.getLine( startline ) !== "" ) { startline-- }
+      while ( endline < cm.lineCount() && cm.getLine( endline ) !== "" ) { endline++ }
+    
+      pos1 = { line: startline, ch: 0 }
+      pos2 = { line: endline, ch: 0 }
+    
+      text = cm.getRange( pos1, pos2 )
 
-      while (startline > 0 && cm.getLine(startline) !== "") {
-        startline--;
-      }
-      while (endline < cm.lineCount() && cm.getLine(endline) !== "") {
-        endline++;
-      }
-
-      pos1 = { line: startline, ch: 0 };
-      pos2 = { line: endline, ch: 0 };
-
-      text = cm.getRange(pos1, pos2);
-
-      pos = { start: pos1, end: pos2 };
+      pos = { start: pos1, end: pos2 }
     }
 
-    if (pos.start === undefined) {
-      var lineNumber = pos.line,
+    if( pos.start === undefined ) {
+      let lineNumber = pos.line,
           start = 0,
-          end = text.length;
+          end = text.length
 
-      pos = { start: { line: lineNumber, ch: start }, end: { line: lineNumber, ch: end } };
+      pos = { start:{ line:lineNumber, ch:start }, end:{ line:lineNumber, ch: end } }
     }
+	
+		return { selection: pos, code: text }
+	},
 
-    return { selection: pos, code: text };
-  },
-  flash: function flash(cm, pos) {
-    var sel = void 0,
-        cb = function cb() {
-      sel.clear();
-    };
-
+  flash(cm, pos) {
+    let sel,
+        cb = function() { sel.clear() }
+  
     if (pos !== null) {
-      if (pos.start) {
-        // if called from a findBlock keymap
-        sel = cm.markText(pos.start, pos.end, { className: "CodeMirror-highlight" });
-      } else {
-        // called with single line
-        sel = cm.markText({ line: pos.line, ch: 0 }, { line: pos.line, ch: null }, { className: "CodeMirror-highlight" });
+      if( pos.start ) { // if called from a findBlock keymap
+        sel = cm.markText( pos.start, pos.end, { className:"CodeMirror-highlight" } );
+      }else{ // called with single line
+        sel = cm.markText( { line: pos.line, ch:0 }, { line: pos.line, ch:null }, { className: "CodeMirror-highlight" } )
       }
-    } else {
-      // called with selected block
-      sel = cm.markText(cm.getCursor(true), cm.getCursor(false), { className: "CodeMirror-highlight" });
+    }else{ // called with selected block
+      sel = cm.markText( cm.getCursor(true), cm.getCursor(false), { className: "CodeMirror-highlight" } );
     }
-
+  
     window.setTimeout(cb, 250);
   }
-};
+}
 
-module.exports = Environment;
+module.exports = Environment
+
 },{"../node_modules/codemirror/addon/edit/closebrackets.js":99,"../node_modules/codemirror/addon/edit/matchbrackets.js":100,"../node_modules/codemirror/addon/hint/javascript-hint.js":101,"../node_modules/codemirror/addon/hint/show-hint.js":102,"../node_modules/codemirror/mode/javascript/javascript.js":104,"./animationScheduler.js":73,"./codeMarkup.js":77,"./lomView.js":84,"./tabs-standalone.microlib-latest.js":92,"codemirror":103}],80:[function(require,module,exports){
-'use strict';
+module.exports = function( Gibber ) {
 
-module.exports = function (Gibber) {
+let Pattern = Gibber.Pattern
 
-  var Pattern = Gibber.Pattern;
+let flatten = function(){
+   let flat = []
+   for ( let i = 0, l = this.length; i < l; i++ ){
+     let type = Object.prototype.toString.call( this[ i ]).split(' ').pop().split( ']' ).shift().toLowerCase()
 
-  var flatten = function flatten() {
-    var flat = [];
-    for (var i = 0, l = this.length; i < l; i++) {
-      var type = Object.prototype.toString.call(this[i]).split(' ').pop().split(']').shift().toLowerCase();
+     if (type) { 
+       flat = flat.concat( /^(array|collection|arguments|object)$/.test( type ) ? flatten.call( this[i] ) : this[i]) 
+     }
+   }
+   return flat
+}
 
-      if (type) {
-        flat = flat.concat(/^(array|collection|arguments|object)$/.test(type) ? flatten.call(this[i]) : this[i]);
+let createStartingArray = function( length, ones ) {
+  let out = []
+  for( let i = 0; i < ones; i++ ) {
+    out.push( [1] )
+  }
+  for( let j = ones; j < length; j++ ) {
+    out.push( 0 )
+  }
+  return out
+}
+
+let printArray = function( array ) {
+  let str = ''
+  for( let i = 0; i < array.length; i++ ) {
+    let outerElement = array[ i ]
+    if( Array.isArray( outerElement ) ) {
+      str += '['
+      for( let j = 0; j < outerElement.length; j++ ) {
+        str += outerElement[ j ]
+      }
+      str += '] '
+    }else{
+      str += outerElement + ''
+    }
+  }
+
+  return str
+}
+
+let arraysEqual = function( a, b ) {
+  if ( a === b ) return true
+  if ( a == null || b == null ) return false
+  if ( a.length != b.length ) return false
+
+  for ( let i = 0; i < a.length; ++i ) {
+    if ( a[ i ] !== b[ i ] ) return false
+  }
+
+  return true
+}
+
+let getLargestArrayCount = function( input ) {
+  let length = 0, count = 0
+
+  for( let i = 0; i < input.length; i++ ) {
+    if( Array.isArray( input[ i ] ) ) { 
+      if( input[ i ].length > length ) {
+        length = input[ i ].length
+        count = 1
+      }else if( input[ i ].length === length ) {
+        count++
       }
     }
-    return flat;
-  };
+  }
 
-  var createStartingArray = function createStartingArray(length, ones) {
-    var out = [];
-    for (var i = 0; i < ones; i++) {
-      out.push([1]);
-    }
-    for (var j = ones; j < length; j++) {
-      out.push(0);
-    }
-    return out;
-  };
+  return count
+}
 
-  var printArray = function printArray(array) {
-    var str = '';
-    for (var i = 0; i < array.length; i++) {
-      var outerElement = array[i];
-      if (Array.isArray(outerElement)) {
-        str += '[';
-        for (var j = 0; j < outerElement.length; j++) {
-          str += outerElement[j];
-        }
-        str += '] ';
-      } else {
-        str += outerElement + '';
-      }
-    }
+let Euclid = function( ones, length, time, rotation ) {
+  let count = 0,
+      out = createStartingArray( length, ones ),
+      onesAndZeros
 
-    return str;
-  };
+ 	function Inner( n,k ) {
+    let operationCount = count++ === 0 ? k : getLargestArrayCount( out ),
+        moveCandidateCount = out.length - operationCount,
+        numberOfMoves = operationCount >= moveCandidateCount ? moveCandidateCount : operationCount
 
-  var arraysEqual = function arraysEqual(a, b) {
-    if (a === b) return true;
-    if (a == null || b == null) return false;
-    if (a.length != b.length) return false;
-
-    for (var i = 0; i < a.length; ++i) {
-      if (a[i] !== b[i]) return false;
-    }
-
-    return true;
-  };
-
-  var getLargestArrayCount = function getLargestArrayCount(input) {
-    var length = 0,
-        count = 0;
-
-    for (var i = 0; i < input.length; i++) {
-      if (Array.isArray(input[i])) {
-        if (input[i].length > length) {
-          length = input[i].length;
-          count = 1;
-        } else if (input[i].length === length) {
-          count++;
-        }
-      }
-    }
-
-    return count;
-  };
-
-  var Euclid = function Euclid(ones, length, time, rotation) {
-    var count = 0,
-        out = createStartingArray(length, ones),
-        onesAndZeros = void 0;
-
-    function Inner(n, k) {
-      var operationCount = count++ === 0 ? k : getLargestArrayCount(out),
-          moveCandidateCount = out.length - operationCount,
-          numberOfMoves = operationCount >= moveCandidateCount ? moveCandidateCount : operationCount;
-
-      if (numberOfMoves > 1 || count === 1) {
-        for (var i = 0; i < numberOfMoves; i++) {
-          var willBeMoved = out.pop(),
-              isArray = Array.isArray(willBeMoved);
-          out[i].push(willBeMoved);
-          if (isArray) {
-            flatten.call(out[i]);
-          }
+    if( numberOfMoves > 1 || count === 1 ) {
+      for( let i = 0; i < numberOfMoves; i++ ) {
+        let willBeMoved = out.pop(), isArray = Array.isArray( willBeMoved )
+        out[ i ].push( willBeMoved )
+        if( isArray ) { 
+          flatten.call( out[ i ] )
         }
       }
-
-      if (n % k !== 0) {
-        return Inner(k, n % k);
-      } else {
-        return flatten.call(out);
-      }
     }
 
-    onesAndZeros = Inner(length, ones);
+    if( n % k !== 0 ) {
+      return Inner( k, n % k )
+    }else {
+      return flatten.call( out )
+    }
+  }
+  
+  onesAndZeros = Inner( length, ones )
 
-    var pattern = Gibber.Pattern.apply(null, onesAndZeros);
+  let pattern = Gibber.Pattern.apply( null, onesAndZeros )
 
-    if (isNaN(time) || time === null) time = 1 / onesAndZeros.length;
+  if( isNaN( time ) || time === null ) time = 1 / onesAndZeros.length
 
-    pattern.time = time;
+  pattern.time = time
 
-    var output = { time: time, shouldExecute: 0 };
+  let output = { time, shouldExecute: 0 }
+  
+  pattern.filters.push( ( args ) => {
+    let val = args[ 0 ],
+        idx = args[ 2 ]
 
-    pattern.filters.push(function (args) {
-      var val = args[0],
-          idx = args[2];
+    output.shouldExecute = val
+    
+    args[ 0 ] = output
 
-      output.shouldExecute = val;
+    return args
+  })
 
-      args[0] = output;
-
-      return args;
-    });
-
-    pattern.reseed = function () {
-      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
-
-      var n = void 0,
-          k = void 0;
-
-      if (Array.isArray(args[0])) {
-        k = args[0][0];
-        n = args[0][1];
-      } else {
-        k = args[0];
-        n = args[1];
-      }
-
-      if (n === undefined) n = 16;
-
-      out = createStartingArray(n, k);
-      var _onesAndZeros = Inner(n, k);
-
-      pattern.set(_onesAndZeros);
-      pattern.time = 1 / n;
-
-      // this.checkForUpdateFunction( 'reseed', pattern )
-
-      return pattern;
-    };
-
-    Gibber.addSequencingToMethod(pattern, 'reseed');
-
-    // out = calculateRhythms( onesAndZeros, dur )
-    // out.initial = onesAndZeros
-    if (typeof rotation === 'number') pattern.rotate(rotation);
-    return pattern; //out
-  };
-  // E(5,8) = [ .25, .125, .25, .125, .25 ]
-  var calculateRhythms = function calculateRhythms(values, dur) {
-    var out = [];
-
-    if (typeof dur === 'undefined') dur = 1 / values.length;
-
-    var idx = 0,
-        currentDur = 0;
-
-    while (idx < values.length) {
-      idx++;
-      currentDur += dur;
-
-      if (values[idx] == 1 || idx === values.length) {
-        out.push(currentDur);
-        currentDur = 0;
-      }
+  pattern.reseed = ( ...args )=> {
+    let n, k
+    
+    if( Array.isArray( args[0] ) ) {
+      k = args[0][0]
+      n = args[0][1]
+    }else{
+      k = args[0]
+      n = args[1]
     }
 
-    return out;
-  };
+    if( n === undefined ) n = 16
+    
+    out = createStartingArray( n,k )
+    let _onesAndZeros = Inner( n,k )
+    
+    pattern.set( _onesAndZeros )
+    pattern.time = 1 / n
 
-  var answers = {
-    '1,4': '1000',
-    '2,3': '101',
-    '2,5': '10100',
-    '3,4': '1011',
-    '3,5': '10101',
-    '3,7': '1010100',
-    '3,8': '10010010',
-    '4,7': '1010101',
-    '4,9': '101010100',
-    '4,11': '10010010010',
-    '5,6': '101111',
-    '5,7': '1011011',
-    '5,8': '10110110',
-    '5,9': '101010101',
-    '5,11': '10101010100',
-    '5,12': '100101001010',
-    '5,16': '1001001001001000',
-    '7,8': '10111111',
-    '11,24': '100101010101001010101010'
-  };
+    // this.checkForUpdateFunction( 'reseed', pattern )
 
-  Euclid.test = function (testKey) {
-    var failed = 0,
-        passed = 0;
+    return pattern
+  }
 
-    if (typeof testKey !== 'string') {
-      for (var key in answers) {
-        var expectedResult = answers[key],
-            result = flatten.call(Euclid.apply(null, key.split(','))).join('');
+  Gibber.addSequencingToMethod( pattern, 'reseed' )
 
-        console.log(result, expectedResult);
+  // out = calculateRhythms( onesAndZeros, dur )
+  // out.initial = onesAndZeros
+  if( typeof rotation === 'number' ) pattern.rotate( rotation )
+  return pattern //out
+}
+// E(5,8) = [ .25, .125, .25, .125, .25 ]
+let calculateRhythms = function( values, dur ) {
+  let out = []
+  
+  if( typeof dur === 'undefined' ) dur = 1 / values.length
 
-        if (result === expectedResult) {
-          console.log("TEST PASSED", key);
-          passed++;
-        } else {
-          console.log("TEST FAILED", key);
-          failed++;
-        }
-      }
-      console.log("*****************************TEST RESULTS - Passed: " + passed + ", Failed: " + failed);
-    } else {
-      var _expectedResult = answers[testKey],
-          _result = flatten.call(Euclid.apply(null, testKey.split(','))).join('');
+  let idx = 0,
+      currentDur = 0
+  
+  while( idx < values.length ) {
+    idx++
+    currentDur += dur
+    
+    if( values[ idx ] == 1 || idx === values.length ) {
+      out.push( currentDur )
+      currentDur = 0
+    } 
+  }
+  
+  return out
+}
 
-      console.log(_result, _expectedResult);
+let answers = {
+  '1,4' : '1000',
+  '2,3' : '101',
+  '2,5' : '10100',
+  '3,4' : '1011',
+  '3,5' : '10101',
+  '3,7' : '1010100',
+  '3,8' : '10010010',
+  '4,7' : '1010101',
+  '4,9' : '101010100',
+  '4,11': '10010010010',
+  '5,6' : '101111',
+  '5,7' : '1011011',
+  '5,8' : '10110110',
+  '5,9' : '101010101',
+  '5,11': '10101010100',
+  '5,12': '100101001010',
+  '5,16': '1001001001001000',
+  '7,8' : '10111111',
+  '11,24': '100101010101001010101010'
+}
 
-      if (_result == _expectedResult) {
-        console.log("TEST PASSED FOR", testKey);
-      } else {
-        console.log("TEST FAILED FOR", testKey);
+Euclid.test = function( testKey ) {
+  let failed = 0, passed = 0
+
+  if( typeof testKey !== 'string' ) {
+    for( let key in answers ) {
+      let expectedResult = answers[ key ],
+          result = flatten.call( Euclid.apply( null, key.split(',') ) ).join('')
+
+      console.log( result, expectedResult )
+
+      if( result === expectedResult ) {
+        console.log("TEST PASSED", key )
+        passed++
+      }else{
+        console.log("TEST FAILED", key )
+        failed++
       }
     }
-  };
+    console.log("*****************************TEST RESULTS - Passed: " + passed + ", Failed: " + failed )
+  }else{
+    let expectedResult = answers[testKey],
+				result = flatten.call( Euclid.apply( null, testKey.split(',') ) ).join('')
 
-  return Euclid;
-};
+    console.log( result, expectedResult )
+
+    if( result == expectedResult ) {
+      console.log("TEST PASSED FOR", testKey)
+    }else{
+      console.log("TEST FAILED FOR", testKey)
+    }
+  }
+}
+
+return Euclid
+}
+
 },{}],81:[function(require,module,exports){
-'use strict';
+const Examples = {
+  default : `/* 
+ * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
+ * A MIDI OUTPUT IN THE MIDI TAB.
+ */
 
-var _Examples;
+// use ctrl+enter to execute line or selection
 
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+// pick a MIDI channel to target. 
+// subsitute another number for 0 as needed
+channel = Gibber.MIDI.channels[0]
 
-var Examples = (_Examples = {
-  default: '/* \n * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE\n * A MIDI OUTPUT IN THE MIDI TAB.\n */\n\n// use ctrl+enter to execute line or selection\n\n// pick a MIDI channel to target. \n// subsitute another number for 0 as needed\nchannel = Gibber.MIDI.channels[0]\n\n// play a note identified by name\nchannel.note( \'c4\' ) // ... or d4, fb2, e#5 etc.\n\n// play a note identified by number. The number represents a\n// position in the master scale object. By default the master\n// scale is set to c4 Aeolian\n\nchannel.note( 0 )\n\n// Change master scale root\nScale.master.root( \'eb4\' )\nchannel.note( 0 )\n\n// You can also send raw midi note messages without using\n// gibberwocky.midi\'s internal scale.\nchannel.midinote( 64 )\n\n// You can change velocity...\nchannel.velocity( 20 )\nchannel.midinote( 64 )\n\nchannel.velocity( 100 )\nchannel.midinote( 64 )\n\n// ... and you can set duration in milliseconds\nchannel.duration( 2000 )\nchannel.midinote( 64 )\nchannel.duration( 50 )\nchannel.midinote( 64 )\n\n// sequence calls to the midinote method every 1/16 note. An optional\n// third argument assigns an id# to the sequencer; by\n// default this id is set to 0 if no argument is passed.\n// Assigning sequences to different id numbers allows them\n// to run in parallel.\nchannel.midinote.seq( [60,61,62,63,64,65,66,67], 1/16 )\n\n// sequence velocity to use random values between 10-127 (midi range)\nchannel.velocity.seq( Rndi( 10,127 ), 1/16 )\n\n// sequence duration of notes in milliseconds\nchannel.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )\n\n// sequence the master scale to change root every measure\nScale.root.seq( [\'c4\',\'d4\',\'f4\',\'g4\'], 1 )\n\n// sequence the master scale to change mode every measure\nScale.mode.seq( [\'aeolian\',\'lydian\', \'wholeHalf\'], 1 )\n\n// stop the sequence with id# 0 from running\nchannel.note[ 0 ].stop()\n\n// stop scale sequencing\nScale.mode[ 0 ].stop()\nScale.root[ 0 ].stop()\n\n// set scale mode\nScale.mode( \'Lydian\' )\nScale.root( \'c3\' )\n\n// Create an arpegctor by passing notes of a chord, \n// number of octaves to play, and style. Possible styles \n// include \'up\', \'down\', \'updown\' (repeat top and bottom \n// notes) and \'updown2\'\na = Arp( [0,2,3,5], 4, \'updown2\' )\n\n// create sequencer using arpeggiator and 1/16 notes\nchannel.note.seq( a, 1/16 )\n\n// transpose the notes in our arpeggio by one scale degree\na.transpose( 1 )\n\n// sequence transposition of one scale degree every measure\na.transpose.seq( 1,1 )\n\n// reset the arpeggiator every 8 measures \n// (removes transposition)\na.reset.seq( 1, 8 )\n\n// stop sequence\nchannel.note[ 0 ].stop()\n\n// creates sequencer at this.note[1] (0 is default)\nchannel.note.seq( [0,1,2,3], [1/4,1/8], 1 )\n\n// parallel sequence at this.note[2] with \n// random note selection  (2 is last arg)\nchannel.note.seq( [5,6,7,8].rnd(), 1/4, 2 )\n\n// Every sequence contains two Pattern functions. \n// The first, \'values\',determines the output of the \n// sequencer. The second, \'timings\', determines when the \n// sequencer fires.\n\n// sequence transposition of this.note[2]\nchannel.note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )\n\n// stop this.note[1]\nchannel.note[ 1 ].stop()\n\n// start this.note[0]\nchannel.note[ 1 ].start()'
+// play a note identified by name
+channel.note( 'c4' ) // ... or d4, fb2, e#5 etc.
 
-}, _defineProperty(_Examples, 'sequencing parameter changes', '/* Almost every parameter in Ableton can be sequenced and controlled\nusing gibberwocky. Because there are hundreds (and often thousands) of paramters exposed\nfor control in any given Live set, gibberwocky provides a more organized way to search\nthem. In the gibberwocky interface, go to the sidebar and click on the \'lom\' tab. \nLOM is short for \'Live Object Model\', and this tab will show you a tree graph \nrepresentation of all the channels / devices / parameters that are exposed\nfor control in Live. Click on any of the small triangles next to the channels / devices to\nexpand or collapse the view for a particular node in the treeview graph.\n\nExplore the tree graph a little bit. When you find a parameter that you\'d like to control, click on\nit in the treeview and then drag it into gibberwocky\'s code editor. This will copy and paste the\npath to the particular parameter you selected for control into the editor, making it easy to start\nsequencing. Unfortunately, it\'s tricky to enter these paths without usign the treeview (at least at\nfirst), but this is because a typical Ableton session has hundreds and hundreds (if not thousands) of\nparameters exposed for control.\n\nLet\'s say you had an Impulse using the 606 preset on Track 1, and you dragged the \'Global Time\'\nparameter into the window. You should see something like the following:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']\n\n/*That string of code actually points to a function. If we pass it a value between 0-1, we can \nchange the value of the time parameter in our Impulse:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( .15 ) // low value\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( .95 ) // high value\n\n/* After running either of the above two lines of code (by placing your cursor on it and hitting\nctrl+enter) you should see the time value change in your Impulse. Great! Now we can control it\nwith sequencing as well, using syntax almost identical to what you have previously\nexplored to sequence note, velocity, and duration messages (at least what you\'ve hopefully\nexplored... if not, check out the corresponding demos). Below is a line of code that\nincremenets the time parameter by .25 every 1/2 note... it loops back to 0 after reaching 1.*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\'].seq( [0, .25, .5, .75, 1], 1/2 )\n\n// We can do the same pattern transforms on our values that we can do with note/veloctiy/duration \n// sequences. We can also sequence randomly:\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\'].seq( Rndf(), 1/16 )\n\n/* Equally as powerful as sequencing is modulating these parameters using gen~ expressions. See\nthe corresponding tutorial for more details about this.*/ '), _defineProperty(_Examples, 'modulating with gen~', '/* gen~ is an extension for Max4Live for synthesizing audio/video signals.\nIn gibberwocky, we can use gen~ to create complex modulation systems that run at audio rate\nand with a much higher resolution than MIDI; there are 4294967296 possible values for gen~\nsignals vs 127 for MIDI. This is a huge improvement, especially for controlling frequencies and\nother parameters that provide large sweeps of range. In the context of gibberwocky, think of\ngen~ graphs as analog(ish) modular patchbays that you can use to control almost any parameter in Live.\n\nAs we saw in the paramter sequencing tutorial (look at that now if you haven\'t yet, or you\'ll be a\nbit lost here), most ugens from gen~ are available for scripting in gibberwocky. In the gibberwocky interface,\ngo to the sidebar, click on the \'lom\' tab, and drag a parameter into the editor that you\'d like to\nmodulate. For purposes of this tutorial, we\'ll assume we\'re modulating the same parameter from the\nparameter sequencing tutorial: the Global Time of an Impulse device on the first channel in the Live set.\n\nPerhaps the most basic modulation is a simple ramp. Remember that all Live parameters accepts values\nbetween {0,1}; this happens to be what the phasor() ugen outputs at a argument frequency. For example,\nto fade our Global Time parameter from its minimum to its maximum value once every second we would use:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( phasor( 1 ) )\n\n/* Execute the above line to see it in action. A related ugen is beat(), which creates a ramp over an\nargument number of beats, making it easy to create tempo-synced modulation graphs. If we wanted to scale \nour phasor() from {.25,.75} we would use slightly more complex graph:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( \n  add( \n    .25,\n    div( phasor( 1 ), 2 )\n  )\n)\n\n/* The above graph divides our phasor in half, giving us a signal between {0,.5}, and then adds .25 to\nthis to give us our final signal. Another common ugen used for modulation is the sine oscillator; in\ngen~ this is the cycle() ugen. The cycle() accepts one parameter, the frequency that it operates at.\nSo we can do the following:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( cycle( .5 ) )\n\n/* However, you\'ll notice that there\'s a problem if you run the above line of code: the parameter\nspends half of each oscillation at its minimum value. This is because cycle() returns a value between\n{-1,1} instead of {0,1}, and whenever a value travels below 0 it is clamped. So, in order to use\ncycle() we need to scale and offset its output the same way we did with our phasor() example:*/\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\'](  \n  add(\n    .5,  \n    div( cycle( .5 ), 2 )\n  )\n)\n\n/* The above example will oscillate between {0,1} with .5 being the center point. Creating these\nscalars and offsets is tedious enough that gibberwocky provides a lfo() ugen to take care of this\nfor you; this ugen is not found in the standard gen~ library (although, as we\'ve seen above, it\'s\nsimple enough to make). lfo() accepts three parameters: frequency, amplitude, and center. For example,\nto create a lfo that moves between {.6, .8} at 2Hz we would use:*/\n\nmylfo = lfo( 2, .1, .7 )\n\n// We can also easily sequence parameters of our LFO:\n\nmylfo.frequency.seq( [ .5,1,2,4 ], 2 )\n\n/* ... as well as sequence any other parameter in Live controlled by a gen~ graph. Although the lfo()\nugen provides named properties for controlling frequency, amplitude, and centroid, there is a more\ngeneric way to sequence any aspect of a gen~ ugen by using the index operator ( [] ). For example,\ncycle() contains a single inlet that controls its frequency, to sequence it we would use: */\n\nmycycle = cycle( .25 )\n\nmycycle[ 0 ].seq( [ .25, 1, 2 ], 1 )\n\nchannels[\'1-Impulse 606\'].devices[\'Impulse\'][\'Global Time\']( add( .5, div( mycycle, 2 ) ) )\n\n/*For other ugens that have more than one argument (see the gen~ random tutorial for an example) we\nsimply indicate the appropriate index... for example, mysah[ 1 ] etc.*/'), _defineProperty(_Examples, 'using the Score() object', '// Scores are lists of functions with associated\n// relative time values. In the score below, the first function has\n// a time value of 0, which means it begins playing immediately. The\n// second has a value of 1, which means it beings playing one measure\n// after the previously executed function. The last function has a\n// timestamp of two, which means it begins playing two measures after\n// the previously executed function. Scores have start(), stop(),\n// loop(), pause() and rewind() methods.\n\ns = Score([ \n  0, function() { \n    channels[1].note.seq( 0, 1/4 )\n  },\n  1, function() { \n     channels[1].note.seq( [0,1], Euclid(3,4), 1 )\n  },\n  2, function() { \n    channels[1].note.seq( [7,14,13,8].rnd(), [1/4,1/8].rnd(), 2 )\n  },  \n])\n\ns.stop()\n\n// scores become much terser using arrow functions\n// (note: Safari does not currently support arrow functions, except in betas)\n\ns = Score([\n  0, ()=> channels[1].note.seq( [0,1,2,3], 1/4 ),\n  1, ()=> channels[1].note.seq( [0,1], Euclid(2,4), 1 ),\n  1, ()=> channels[1].note.seq( [3,4], [1/4,1/8], 2 )\n])'), _defineProperty(_Examples, 'using the Steps() object (step-sequencer)', '/* Steps() creates a group of sequencer objects. Each\n * sequencer is responsible for playing a single note,\n * where the velocity of each note is determined by\n * a hexadecimal value (0-f), where f is the loudest note.\n * A value of \'.\' means that no MIDI note message is sent\n * with for that particular pattern element.\n *\n * The lengths of the patterns found in a Steps object can\n * differ. By default, the amount of time for each step in\n * a pattern equals 1 divided by the number of steps in the\n * pattern. In the example below, each pattern has sixteen\n * steps, so each step represents a sixteenth note.\n *\n * The individual patterns can be accessed using the note\n * numbers they are assigned to. So, given an instance with\n * the name \'a\' (as below), the pattern for note 60 can be\n * accessed at a[60]. Note that you have to access with brackets\n * as a.60 is not valid JavaScript.\n *\n * The second argument to Steps is the channel to target.  \n */ \n\na = Steps({\n  [60]: \'3.3f..4..8.5...f\',\n  [62]: \'7.9.f4.....6f...\',\n  [64]: \'........7.9.c..d\',\n  [65]: \'..6..78..b......\',\n  [67]: \'.f..3.........f.\',  \n  [71]: \'e.a.e.a.e.a.a...\',  \n  [72]: \'..............e.\',\n}, Gibber.MIDI.channels[0] )\n\n// rotate one pattern in step sequencer\n// every measure\na[71].rotate.seq( 1,1 )\n\n// reverse all steps each measure\na.reverse.seq( 1, 2 )'), _Examples);
+// play a note identified by number. The number represents a
+// position in the master scale object. By default the master
+// scale is set to c4 Aeolian
 
-module.exports = Examples; //stepsExample2//simpleExample//genExample//exampleScore4//exampleScore4 //'this.note.seq( [0,1], Euclid(5,8) );' //exampleCode
-},{}],82:[function(require,module,exports){
-'use strict';
+channel.note( 0 )
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+// Change master scale root
+Scale.master.root( 'eb4' )
+channel.note( 0 )
 
-var Gibber = {
-  Utility: require('./utility.js'),
-  Communication: require('./communication.js'),
-  Environment: require('./environment.js'),
-  Scheduler: require('./clock.js'),
-  Theory: require('./theory.js'),
-  Examples: require('./example.js'),
-  MIDI: require('./MIDI.js'),
-  Channel: null,
-  Gen: null,
-  Euclid: null,
-  Seq: null,
-  Score: null,
-  Pattern: null,
-  Arp: null,
-  currentTrack: null,
-  codemirror: null,
-  max: null,
-  '$': null,
+// You can also send raw midi note messages without using
+// gibberwocky.midi's internal scale.
+channel.midinote( 64 )
 
-  export: function _export() {
-    window.Steps = this.Steps;
-    window.Seq = this.Seq;
-    window.Score = this.Score;
-    window.Track = this.Track;
-    window.Scheduler = this.Scheduler;
-    window.Pattern = this.Pattern;
-    window.Euclid = this.Euclid;
-    window.Arp = this.Arp;
-    window.Communication = this.Communication;
-    window.log = this.log;
-    window.Theory = this.Theory;
-    window.Scale = this.Theory.Scale.master;
+// You can change velocity...
+channel.velocity( 20 )
+channel.midinote( 64 )
 
-    Gibber.Gen.export(window);
+channel.velocity( 100 )
+channel.midinote( 64 )
 
-    this.Utility.export(window);
+// ... and you can set duration in milliseconds
+channel.duration( 2000 )
+channel.midinote( 64 )
+channel.duration( 50 )
+channel.midinote( 64 )
+
+// sequence calls to the midinote method every 1/16 note. An optional
+// third argument assigns an id# to the sequencer; by
+// default this id is set to 0 if no argument is passed.
+// Assigning sequences to different id numbers allows them
+// to run in parallel.
+channel.midinote.seq( [60,61,62,63,64,65,66,67], 1/16 )
+
+// sequence velocity to use random values between 10-127 (midi range)
+channel.velocity.seq( Rndi( 10,127 ), 1/16 )
+
+// sequence duration of notes in milliseconds
+channel.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
+
+// sequence the master scale to change root every measure
+Scale.root.seq( ['c4','d4','f4','g4'], 1 )
+
+// sequence the master scale to change mode every measure
+Scale.mode.seq( ['aeolian','lydian', 'wholeHalf'], 1 )
+
+// stop the sequence with id# 0 from running
+channel.note[ 0 ].stop()
+
+// stop scale sequencing
+Scale.mode[ 0 ].stop()
+Scale.root[ 0 ].stop()
+
+// set scale mode
+Scale.mode( 'Lydian' )
+Scale.root( 'c3' )
+
+// Create an arpegctor by passing notes of a chord, 
+// number of octaves to play, and style. Possible styles 
+// include 'up', 'down', 'updown' (repeat top and bottom 
+// notes) and 'updown2'
+a = Arp( [0,2,3,5], 4, 'updown2' )
+
+// create sequencer using arpeggiator and 1/16 notes
+channel.note.seq( a, 1/16 )
+
+// transpose the notes in our arpeggio by one scale degree
+a.transpose( 1 )
+
+// sequence transposition of one scale degree every measure
+a.transpose.seq( 1,1 )
+
+// reset the arpeggiator every 8 measures 
+// (removes transposition)
+a.reset.seq( 1, 8 )
+
+// stop sequence
+channel.note[ 0 ].stop()
+
+// creates sequencer at this.note[1] (0 is default)
+channel.note.seq( [0,1,2,3], [1/4,1/8], 1 )
+
+// parallel sequence at this.note[2] with 
+// random note selection  (2 is last arg)
+channel.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
+
+// Every sequence contains two Pattern functions. 
+// The first, 'values',determines the output of the 
+// sequencer. The second, 'timings', determines when the 
+// sequencer fires.
+
+// sequence transposition of this.note[2]
+channel.note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
+
+// stop this.note[1]
+channel.note[ 1 ].stop()
+
+// start this.note[0]
+channel.note[ 1 ].start()`,
+
+['sequencing parameter changes']: `/* Almost every parameter in Ableton can be sequenced and controlled
+using gibberwocky. Because there are hundreds (and often thousands) of paramters exposed
+for control in any given Live set, gibberwocky provides a more organized way to search
+them. In the gibberwocky interface, go to the sidebar and click on the 'lom' tab. 
+LOM is short for 'Live Object Model', and this tab will show you a tree graph 
+representation of all the channels / devices / parameters that are exposed
+for control in Live. Click on any of the small triangles next to the channels / devices to
+expand or collapse the view for a particular node in the treeview graph.
+
+Explore the tree graph a little bit. When you find a parameter that you'd like to control, click on
+it in the treeview and then drag it into gibberwocky's code editor. This will copy and paste the
+path to the particular parameter you selected for control into the editor, making it easy to start
+sequencing. Unfortunately, it's tricky to enter these paths without usign the treeview (at least at
+first), but this is because a typical Ableton session has hundreds and hundreds (if not thousands) of
+parameters exposed for control.
+
+Let's say you had an Impulse using the 606 preset on Track 1, and you dragged the 'Global Time'
+parameter into the window. You should see something like the following:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']
+
+/*That string of code actually points to a function. If we pass it a value between 0-1, we can 
+change the value of the time parameter in our Impulse:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( .15 ) // low value
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( .95 ) // high value
+
+/* After running either of the above two lines of code (by placing your cursor on it and hitting
+ctrl+enter) you should see the time value change in your Impulse. Great! Now we can control it
+with sequencing as well, using syntax almost identical to what you have previously
+explored to sequence note, velocity, and duration messages (at least what you've hopefully
+explored... if not, check out the corresponding demos). Below is a line of code that
+incremenets the time parameter by .25 every 1/2 note... it loops back to 0 after reaching 1.*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( [0, .25, .5, .75, 1], 1/2 )
+
+// We can do the same pattern transforms on our values that we can do with note/veloctiy/duration 
+// sequences. We can also sequence randomly:
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( Rndf(), 1/16 )
+
+/* Equally as powerful as sequencing is modulating these parameters using gen~ expressions. See
+the corresponding tutorial for more details about this.*/ `,
+
+['modulating with gen~'] : `/* gen~ is an extension for Max4Live for synthesizing audio/video signals.
+In gibberwocky, we can use gen~ to create complex modulation systems that run at audio rate
+and with a much higher resolution than MIDI; there are 4294967296 possible values for gen~
+signals vs 127 for MIDI. This is a huge improvement, especially for controlling frequencies and
+other parameters that provide large sweeps of range. In the context of gibberwocky, think of
+gen~ graphs as analog(ish) modular patchbays that you can use to control almost any parameter in Live.
+
+As we saw in the paramter sequencing tutorial (look at that now if you haven't yet, or you'll be a
+bit lost here), most ugens from gen~ are available for scripting in gibberwocky. In the gibberwocky interface,
+go to the sidebar, click on the 'lom' tab, and drag a parameter into the editor that you'd like to
+modulate. For purposes of this tutorial, we'll assume we're modulating the same parameter from the
+parameter sequencing tutorial: the Global Time of an Impulse device on the first channel in the Live set.
+
+Perhaps the most basic modulation is a simple ramp. Remember that all Live parameters accepts values
+between {0,1}; this happens to be what the phasor() ugen outputs at a argument frequency. For example,
+to fade our Global Time parameter from its minimum to its maximum value once every second we would use:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( phasor( 1 ) )
+
+/* Execute the above line to see it in action. A related ugen is beat(), which creates a ramp over an
+argument number of beats, making it easy to create tempo-synced modulation graphs. If we wanted to scale 
+our phasor() from {.25,.75} we would use slightly more complex graph:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( 
+  add( 
+    .25,
+    div( phasor( 1 ), 2 )
+  )
+)
+
+/* The above graph divides our phasor in half, giving us a signal between {0,.5}, and then adds .25 to
+this to give us our final signal. Another common ugen used for modulation is the sine oscillator; in
+gen~ this is the cycle() ugen. The cycle() accepts one parameter, the frequency that it operates at.
+So we can do the following:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( cycle( .5 ) )
+
+/* However, you'll notice that there's a problem if you run the above line of code: the parameter
+spends half of each oscillation at its minimum value. This is because cycle() returns a value between
+{-1,1} instead of {0,1}, and whenever a value travels below 0 it is clamped. So, in order to use
+cycle() we need to scale and offset its output the same way we did with our phasor() example:*/
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time'](  
+  add(
+    .5,  
+    div( cycle( .5 ), 2 )
+  )
+)
+
+/* The above example will oscillate between {0,1} with .5 being the center point. Creating these
+scalars and offsets is tedious enough that gibberwocky provides a lfo() ugen to take care of this
+for you; this ugen is not found in the standard gen~ library (although, as we've seen above, it's
+simple enough to make). lfo() accepts three parameters: frequency, amplitude, and center. For example,
+to create a lfo that moves between {.6, .8} at 2Hz we would use:*/
+
+mylfo = lfo( 2, .1, .7 )
+
+// We can also easily sequence parameters of our LFO:
+
+mylfo.frequency.seq( [ .5,1,2,4 ], 2 )
+
+/* ... as well as sequence any other parameter in Live controlled by a gen~ graph. Although the lfo()
+ugen provides named properties for controlling frequency, amplitude, and centroid, there is a more
+generic way to sequence any aspect of a gen~ ugen by using the index operator ( [] ). For example,
+cycle() contains a single inlet that controls its frequency, to sequence it we would use: */
+
+mycycle = cycle( .25 )
+
+mycycle[ 0 ].seq( [ .25, 1, 2 ], 1 )
+
+channels['1-Impulse 606'].devices['Impulse']['Global Time']( add( .5, div( mycycle, 2 ) ) )
+
+/*For other ugens that have more than one argument (see the gen~ random tutorial for an example) we
+simply indicate the appropriate index... for example, mysah[ 1 ] etc.*/`,
+
+[ 'using the Score() object' ]  : `// Scores are lists of functions with associated
+// relative time values. In the score below, the first function has
+// a time value of 0, which means it begins playing immediately. The
+// second has a value of 1, which means it beings playing one measure
+// after the previously executed function. The last function has a
+// timestamp of two, which means it begins playing two measures after
+// the previously executed function. Scores have start(), stop(),
+// loop(), pause() and rewind() methods.
+
+s = Score([ 
+  0, function() { 
+    channels[1].note.seq( 0, 1/4 )
   },
-  init: function init() {
+  1, function() { 
+     channels[1].note.seq( [0,1], Euclid(3,4), 1 )
+  },
+  2, function() { 
+    channels[1].note.seq( [7,14,13,8].rnd(), [1/4,1/8].rnd(), 2 )
+  },  
+])
+
+s.stop()
+
+// scores become much terser using arrow functions
+// (note: Safari does not currently support arrow functions, except in betas)
+
+s = Score([
+  0, ()=> channels[1].note.seq( [0,1,2,3], 1/4 ),
+  1, ()=> channels[1].note.seq( [0,1], Euclid(2,4), 1 ),
+  1, ()=> channels[1].note.seq( [3,4], [1/4,1/8], 2 )
+])`,
+
+['using the Steps() object (step-sequencer)'] : `/* Steps() creates a group of sequencer objects. Each
+ * sequencer is responsible for playing a single note,
+ * where the velocity of each note is determined by
+ * a hexadecimal value (0-f), where f is the loudest note.
+ * A value of '.' means that no MIDI note message is sent
+ * with for that particular pattern element.
+ *
+ * The lengths of the patterns found in a Steps object can
+ * differ. By default, the amount of time for each step in
+ * a pattern equals 1 divided by the number of steps in the
+ * pattern. In the example below, each pattern has sixteen
+ * steps, so each step represents a sixteenth note.
+ *
+ * The individual patterns can be accessed using the note
+ * numbers they are assigned to. So, given an instance with
+ * the name 'a' (as below), the pattern for note 60 can be
+ * accessed at a[60]. Note that you have to access with brackets
+ * as a.60 is not valid JavaScript.
+ *
+ * The second argument to Steps is the channel to target.  
+ */ 
+
+a = Steps({
+  [60]: '3.3f..4..8.5...f',
+  [62]: '7.9.f4.....6f...',
+  [64]: '........7.9.c..d',
+  [65]: '..6..78..b......',
+  [67]: '.f..3.........f.',  
+  [71]: 'e.a.e.a.e.a.a...',  
+  [72]: '..............e.',
+}, Gibber.MIDI.channels[0] )
+
+// rotate one pattern in step sequencer
+// every measure
+a[71].rotate.seq( 1,1 )
+
+// reverse all steps each measure
+a.reverse.seq( 1, 2 )`,
+
+}
+
+module.exports = Examples//stepsExample2//simpleExample//genExample//exampleScore4//exampleScore4 //'this.note.seq( [0,1], Euclid(5,8) );' //exampleCode
+
+},{}],82:[function(require,module,exports){
+let Gibber = {
+  Utility:       require( './utility.js' ),
+  Communication: require( './communication.js' ),
+  Environment:   require( './environment.js' ),
+  Scheduler:     require( './clock.js' ),
+  Theory:        require( './theory.js' ),
+  Examples:      require( './example.js' ),
+  MIDI:          require( './MIDI.js' ),
+  Channel:       null, 
+  Gen:           null,
+  Euclid:        null,
+  Seq:           null,
+  Score:         null,
+  Pattern:       null,
+  Arp:           null,
+  currentTrack:  null,
+  codemirror:    null,
+  max:           null,
+  '$':           null,
+
+  export() {
+    window.Steps         = this.Steps
+    window.Seq           = this.Seq
+    window.Score         = this.Score
+    window.Track         = this.Track
+    window.Scheduler     = this.Scheduler
+    window.Pattern       = this.Pattern
+    window.Euclid        = this.Euclid
+    window.Arp           = this.Arp
+    window.Communication = this.Communication
+    window.log           = this.log
+    window.Theory        = this.Theory
+    window.Scale         = this.Theory.Scale.master
+    
+    Gibber.Gen.export( window )
+
+    this.Utility.export( window )
+  },
+
+  init() {
     // XXX WATCH OUT
-    this.Environment.debug = false;
+    this.Environment.debug = false
 
-    this.max = window.max;
-    this.$ = Gibber.Utility.create;
+    this.max = window.max
+    this.$   = Gibber.Utility.create
 
-    this.Environment.init(Gibber);
-    this.Theory.init(Gibber);
-    this.log = this.Environment.log;
+    this.Environment.init( Gibber )
+    this.Theory.init( Gibber )
+    this.log = this.Environment.log
 
-    if (this.Environment.debug) {
-      this.Scheduler.mockRun();
-    } else {
+    if( this.Environment.debug ) {
+      this.Scheduler.mockRun()
+      
+    }else{
       // AS LONG AS THIS DOESN'T RUN, NO ATTEMPT TO COMMUNICATE WITH LIVE IS MADE
       //this.Communication.init( Gibber ) 
-      this.MIDI.init(Gibber);
+      this.MIDI.init( Gibber )
     }
 
     //this.currentTrack = this.Track( this, 1 ) // TODO: how to determine actual "id" from Max?
+    
+    this.initSingletons( window )
 
-    this.initSingletons(window);
-
-    this.export();
+    this.export()
   },
-  singleton: function singleton(target, key) {
-    if (Array.isArray(key)) {
-      for (var i = 0; i < key.length; i++) {
-        Gibber.singleton(target, key[i]);
+
+  singleton( target, key ) {
+    if( Array.isArray( key ) ) {
+      for( let i = 0; i < key.length; i++ ) {
+        Gibber.singleton( target, key[ i ] )
       }
-      return;
+      return
+    }
+    
+    if( target[ key ] !== undefined ) {
+      delete target[ key ]
     }
 
-    if (target[key] !== undefined) {
-      delete target[key];
-    }
-
-    var proxy = null;
-    Object.defineProperty(target, key, {
-      get: function get() {
-        return proxy;
-      },
-      set: function set(v) {
-        if (proxy && proxy.clear) {
-          proxy.clear();
+    let proxy = null
+    Object.defineProperty( target, key, {
+      get() { return proxy },
+      set(v) {
+        if( proxy && proxy.clear ) {
+          proxy.clear()
         }
 
-        proxy = v;
+        proxy = v
       }
-    });
+    })
   },
 
+  initSingletons: function( target ) {
+		var letters = "abcdefghijklmnopqrstuvwxyz"
+    
+		for(var l = 0; l < letters.length; l++) {
 
-  initSingletons: function initSingletons(target) {
-    var letters = "abcdefghijklmnopqrstuvwxyz";
-
-    for (var l = 0; l < letters.length; l++) {
-
-      var lt = letters.charAt(l);
-      Gibber.singleton(target, lt);
+			var lt = letters.charAt(l);
+      Gibber.singleton( target, lt )
+      
     }
   },
 
-  clear: function clear() {
-    for (var i = 0; i < this.Seq._seqs.length; i++) {
-      this.Seq._seqs[i].clear();
+  clear() {
+    for( let i = 0; i < this.Seq._seqs.length; i++ ){
+      this.Seq._seqs[ i ].clear()
     }
+    
+    setTimeout( () => {
+    for( let key in Gibber.currentTrack.markup.textMarkers ) {
+      let marker = Gibber.currentTrack.markup.textMarkers[ key ]
 
-    setTimeout(function () {
-      for (var key in Gibber.currentTrack.markup.textMarkers) {
-        var marker = Gibber.currentTrack.markup.textMarkers[key];
+      if( marker.clear ) marker.clear() 
+    }
+    }, 500 )
 
-        if (marker.clear) marker.clear();
-      }
-    }, 500);
-
-    Gibber.MIDI.clear();
-    Gibber.Gen.clear();
-    Gibber.Environment.codeMarkup.clear();
+    Gibber.MIDI.clear()
+    Gibber.Gen.clear()
+    Gibber.Environment.codeMarkup.clear()
   },
-  addSequencingToMethod: function addSequencingToMethod(obj, methodName, priority, overrideName) {
 
-    if (!obj.sequences) obj.sequences = {};
-    if (overrideName === undefined) overrideName = methodName;
+  addSequencingToMethod( obj, methodName, priority, overrideName ) {
+    
+    if( !obj.sequences ) obj.sequences = {}
+    if( overrideName === undefined ) overrideName = methodName 
+    
+    let lastId = 0
+    obj[ methodName ].seq = function( values, timings, id=0, delay=0 ) {
+      let seq
+      lastId = id
 
-    var lastId = 0;
-    obj[methodName].seq = function (values, timings) {
-      var id = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-      var delay = arguments.length <= 3 || arguments[3] === undefined ? 0 : arguments[3];
+      if( obj.sequences[ methodName ] === undefined ) obj.sequences[ methodName ] = []
 
-      var seq = void 0;
-      lastId = id;
+      if( obj.sequences[ methodName ][ id ] ) obj.sequences[ methodName ][ id ].clear()
 
-      if (obj.sequences[methodName] === undefined) obj.sequences[methodName] = [];
+      obj.sequences[ methodName ][ id ] = seq = Gibber.Seq( values, timings, overrideName, obj, priority )
+      seq.trackID = obj.id
 
-      if (obj.sequences[methodName][id]) obj.sequences[methodName][id].clear();
-
-      obj.sequences[methodName][id] = seq = Gibber.Seq(values, timings, overrideName, obj, priority);
-      seq.trackID = obj.id;
-
-      if (id === 0) {
-        obj[methodName].values = obj.sequences[methodName][0].values;
-        obj[methodName].timings = obj.sequences[methodName][0].timings;
+      if( id === 0 ) {
+        obj[ methodName ].values  = obj.sequences[ methodName ][ 0 ].values
+        obj[ methodName ].timings = obj.sequences[ methodName ][ 0 ].timings
       }
 
-      obj[methodName][id] = seq;
+      obj[ methodName ][ id ] = seq
 
-      seq.delay(delay);
-      seq.start();
+      seq.delay( delay )
+      seq.start()
 
       //Gibber.Communication.send( `select_track ${obj.id}` )
 
-      return seq;
-    };
+      return seq
+    }
+    
+    obj[ methodName ].seq.delay = v => obj[ methodName ][ lastId ].delay( v )
 
-    obj[methodName].seq.delay = function (v) {
-      return obj[methodName][lastId].delay(v);
-    };
+    obj[ methodName ].seq.stop = function() {
+      obj.sequences[ methodName ][ 0 ].stop()
+      return obj
+    }
 
-    obj[methodName].seq.stop = function () {
-      obj.sequences[methodName][0].stop();
-      return obj;
-    };
+    obj[ methodName ].seq.start = function() {
+      obj.sequences[ methodName ][ 0 ].start()
+      return obj
+    }
 
-    obj[methodName].seq.start = function () {
-      obj.sequences[methodName][0].start();
-      return obj;
-    };
+
   },
-  addSequencingToProtoMethod: function addSequencingToProtoMethod(proto, methodName) {
-    proto[methodName].seq = function (values, timings) {
-      var id = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
 
+  addSequencingToProtoMethod( proto, methodName ) {
+    proto[ methodName ].seq = function( values, timings, id = 0 ) {
 
-      if (this.sequences === undefined) this.sequences = {};
+      if( this.sequences === undefined ) this.sequences = {}
 
-      if (this.sequences[methodName] === undefined) this.sequences[methodName] = [];
+      if( this.sequences[ methodName ] === undefined ) this.sequences[ methodName ] = []
 
-      if (this.sequences[methodName][id]) this.sequences[methodName][id].stop();
+      if( this.sequences[ methodName ][ id ] ) this.sequences[ methodName ][ id ].stop() 
 
-      this.sequences[methodName][id] = Gibber.Seq(values, timings, methodName, this).start(); // 'this' will never be correct reference
+      this.sequences[ methodName ][ id ] = Gibber.Seq( values, timings, methodName, this ).start() // 'this' will never be correct reference
 
-      if (id === 0) {
-        this.values = this.sequences[methodName][0].values;
-        this.timings = this.sequences[methodName][0].timings;
+      if( id === 0 ) {
+        this.values  = this.sequences[ methodName ][ 0 ].values
+        this.timings = this.sequences[ methodName ][ 0 ].timings
       }
 
-      this[id] = this.sequences[methodName][id];
+      this[ id ] = this.sequences[ methodName ][ id ]
+      
+      this.seq.stop = function() {
+        this.sequences[ methodName ][ 0 ].stop()
+        return this
+      }.bind( this )
 
-      this.seq.stop = function () {
-        this.sequences[methodName][0].stop();
-        return this;
-      }.bind(this);
-
-      this.seq.start = function () {
-        this.sequences[methodName][0].start();
-        return this;
-      }.bind(this);
-    };
+      this.seq.start = function() {
+        this.sequences[ methodName ][ 0 ].start()
+        return this
+      }.bind( this )
+    }
   },
-  addMethod: function addMethod(obj, methodName, parameter, _trackID) {
-    var v = parameter.value,
-        _p = void 0,
-        trackID = isNaN(_trackID) ? obj.id : _trackID,
-        seqKey = trackID + ' ' + obj.id + ' ' + parameter.id;
+
+  addMethod( obj, methodName, channel, ccnum)  {
+    let v = 0,//parameter.value,
+        p,
+        seqKey = `${channel} cc ${ccnum}`
 
     //console.log( "add method trackID", trackID )
 
-    if (methodName === null) methodName = parameter.name;
+    Gibber.Seq.proto.externalMessages[ seqKey ] = ( val, offset=null ) => {
+      let msg = [ 0xb0 + channel, ccnum, val ]
+      const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
 
-    Gibber.Seq.proto.externalMessages[seqKey] = function (value, beat) {
-      var msg = 'add ' + beat + ' set ' + parameter.id + ' ' + value;
-      return msg;
-    };
+      Gibber.MIDI.send( msg, baseTime )
+    }
 
-    obj[methodName] = _p = function p(_v) {
-      if (_p.properties.quantized === 1) _v = Math.round(_v);
+    
+    obj[ methodName ] = p = ( _v ) => {
+      //if( p.properties.quantized === 1 ) _v = Math.round( _v )
+      
+      if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
 
-      if (_v !== undefined) {
-        if ((typeof _v === 'undefined' ? 'undefined' : _typeof(_v)) === 'object' && _v.isGen) {
-          Gibber.Gen.assignTrackAndParamID(_v, trackID, parameter.id);
+      console.log( 'isGen:' , _v.isGen )
 
+      if( _v !== undefined ) {
+        if( typeof _v === 'object' && _v.isGen ) {
+          Gibber.Gen.assignTrackAndParamID( _v, channel, ccnum )
+          
           // if a gen is not already connected to this parameter, push
-          if (Gibber.Gen.connected.find(function (e) {
-            return e.paramID === parameter.id;
-          }) === undefined) {
-            Gibber.Gen.connected.push(_v);
-          }
+          //if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
+          //  Gibber.Gen.connected.push( _v )
+          //}
 
-          Gibber.Gen.lastConnected = _v;
-
+          Gibber.Gen.lastConnected = _v
+          
           // disconnects for fades etc.
-          if (_typeof(_v.shouldKill) === 'object') {
-            Gibber.Utility.future(function () {
-              Gibber.Communication.send('ungen ' + parameter.id);
-              Gibber.Communication.send('set ' + parameter.id + ' ' + _v.shouldKill.final);
+          if( typeof _v.shouldKill === 'object' ) {
+            Gibber.Utility.future( ()=> {
+              Gibber.Communication.send( `ungen ${parameter.id}` )
+              Gibber.Communication.send( `set ${parameter.id} ${_v.shouldKill.final}` )
 
-              var widget = Gibber.Environment.codeMarkup.genWidgets[parameter.id];
-              if (widget !== undefined && widget.mark !== undefined) {
-                widget.mark.clear();
+              let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+              if( widget !== undefined && widget.mark !== undefined ) {
+                widget.mark.clear()
               }
-              delete Gibber.Environment.codeMarkup.genWidgets[parameter.id];
-            }, _v.shouldKill.after);
+              delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+            }, _v.shouldKill.after )
           }
-
-          v = _v;
-        } else {
+          
+          v = _v
+        }else{
           // if there was a gen assigned and now a number is being assigned...
-          if (v.isGen) {
-            Gibber.Communication.send('ungen ' + parameter.id);
-            var widget = Gibber.Environment.codeMarkup.genWidgets[parameter.id];
-            if (widget !== undefined && widget.mark !== undefined) {
-              widget.mark.clear();
+          if( v.isGen ) { 
+            Gibber.Communication.send( `ungen ${parameter.id}` )
+            let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+            if( widget !== undefined && widget.mark !== undefined ) {
+              widget.mark.clear()
             }
-            delete Gibber.Environment.codeMarkup.genWidgets[parameter.id];
+            delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
           }
 
-          v = _v;
-          Gibber.Communication.send('set ' + parameter.id + ' ' + v);
+          v = _v
+          Gibber.Seq.proto.externalMessages[ seqKey ]( v )
+          //Gibber.Communication.send( `set ${parameter.id} ${v}` )
         }
-      } else {
-        return v;
+      }else{
+        return v
       }
-    };
+    }
 
-    _p.properties = parameter;
+    //p.properties = parameter
 
-    Gibber.addSequencingToMethod(obj, methodName, 0, seqKey);
+    Gibber.addSequencingToMethod( obj, methodName, 0, seqKey )
   }
-};
+}
 
-Gibber.Pattern = require('./pattern.js')(Gibber);
-Gibber.Seq = require('./seq.js')(Gibber);
-Gibber.Score = require('./score.js')(Gibber);
-Gibber.Arp = require('./arp.js')(Gibber);
-Gibber.Euclid = require('./euclidean.js')(Gibber);
-Gibber.Gen = require('./modulation.js')(Gibber);
-Gibber.Steps = require('./steps.js')(Gibber);
-Gibber.Channel = require('./channel.js')(Gibber);
+Gibber.Pattern = require( './pattern.js' )( Gibber )
+Gibber.Seq     = require( './seq.js' )( Gibber )
+Gibber.Score   = require( './score.js' )( Gibber )
+Gibber.Arp     = require( './arp.js' )( Gibber )
+Gibber.Euclid  = require( './euclidean.js')( Gibber )
+Gibber.Gen     = require( './modulation.js' )( Gibber )
+Gibber.Steps   = require( './steps.js' )( Gibber )
+Gibber.Channel = require( './channel.js')( Gibber )
 
-module.exports = Gibber;
+module.exports = Gibber
+
 },{"./MIDI.js":85,"./arp.js":74,"./channel.js":75,"./clock.js":76,"./communication.js":78,"./environment.js":79,"./euclidean.js":80,"./example.js":81,"./modulation.js":86,"./pattern.js":87,"./score.js":89,"./seq.js":90,"./steps.js":91,"./theory.js":93,"./utility.js":94}],83:[function(require,module,exports){
-'use strict';
+require( 'babel-polyfill' )
 
-require('babel-polyfill');
-
-var Gibber = require('./gibber.js'),
+let Gibber = require( './gibber.js' ),
     useAudioContext = false,
-    count = 0;
+    count = 0
+   
+Gibber.init()
+window.Gibber = Gibber
 
-Gibber.init();
-window.Gibber = Gibber;
 },{"./gibber.js":82,"babel-polyfill":97}],84:[function(require,module,exports){
-'use strict';
+require( './vanillatree.js' )
 
-require('./vanillatree.js');
+let Gibber = null, count = -1
 
-var Gibber = null,
-    count = -1;
-
-var lomView = {
+let lomView = {
   tree: null,
 
-  init: function init(_gibber) {
-    Gibber = _gibber;
-    this.setup();
-    this.create();
+  init( _gibber ) {
+    Gibber = _gibber
+    this.setup()
+    this.create()
 
-    count++;
-    if (count) Gibber.log('the live object model (lom) has been updated.');
+    count++
+    if( count )
+      Gibber.log( 'the live object model (lom) has been updated.' )
   },
-  setup: function setup() {
-    document.querySelector('#lomView').innerHTML = '';
+
+  setup() {
+    document.querySelector( '#lomView' ).innerHTML = ''
 
     this.tree = new VanillaTree('#lomView', {
       placeholder: ''
@@ -6338,564 +6364,385 @@ var lomView = {
       //    // someAction
       //  }
       //}]
-    });
+    })
     //elem.addEventListener( 'vtree-select', function( evt ) {
     //  console.log( evt, evt.detail )
     //});
   },
-  processTrack: function processTrack(track, id) {
-    var trackID = id === undefined ? track.spec.name : id;
-    lomView.tree.add({ label: trackID, id: trackID });
-    var _iteratorNormalCompletion = true;
-    var _didIteratorError = false;
-    var _iteratorError = undefined;
 
-    try {
-      for (var _iterator = track.devices[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        var device = _step.value;
-
-        var deviceID = device.name; // device.title
-        lomView.tree.add({ label: deviceID, id: deviceID, parent: trackID });
-        var _iteratorNormalCompletion2 = true;
-        var _didIteratorError2 = false;
-        var _iteratorError2 = undefined;
-
-        try {
-          for (var _iterator2 = device.parameters[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-            var param = _step2.value;
-
-            lomView.tree.add({ label: param.name, id: encodeURI(param.name), parent: deviceID });
-          }
-        } catch (err) {
-          _didIteratorError2 = true;
-          _iteratorError2 = err;
-        } finally {
-          try {
-            if (!_iteratorNormalCompletion2 && _iterator2.return) {
-              _iterator2.return();
-            }
-          } finally {
-            if (_didIteratorError2) {
-              throw _iteratorError2;
-            }
-          }
-        }
-      }
-    } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion && _iterator.return) {
-          _iterator.return();
-        }
-      } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
-        }
+  processTrack( track, id ) {
+    let trackID = id === undefined ? track.spec.name : id
+    lomView.tree.add({ label:trackID, id:trackID }) 
+    for( let device of track.devices ) {
+      let deviceID = device.name // device.title
+      lomView.tree.add({ label:deviceID, id:deviceID, parent:trackID })
+      for( let param of device.parameters ) {
+        lomView.tree.add({ label:param.name, id:encodeURI(param.name), parent:deviceID })
       }
     }
   },
-  create: function create() {
-    Gibber.Live.tracks.forEach(function (v) {
-      return lomView.processTrack(v);
-    });
-    Gibber.Live.returns.forEach(function (v) {
-      return lomView.processTrack(v);
-    }); // 'return ' + v.id ) )
-    lomView.processTrack(Gibber.Live.master);
+
+  create() {
+    Gibber.Live.tracks.forEach( v => lomView.processTrack( v ) )
+    Gibber.Live.returns.forEach( v => lomView.processTrack( v ) ) // 'return ' + v.id ) )
+    lomView.processTrack( Gibber.Live.master )
   }
-};
+}
 
-module.exports = lomView;
+module.exports = lomView 
+
 },{"./vanillatree.js":95}],85:[function(require,module,exports){
-'use strict';
+let Gibber = null
 
-var Gibber = null;
-
-var MIDI = {
+const MIDI = {
   channels: [],
 
-  init: function init(_Gibber) {
-    Gibber = _Gibber;
+  init( _Gibber ) {
+    Gibber = _Gibber
 
-    var midiPromise = navigator.requestMIDIAccess().then(function (midiAccess) {
-      MIDI.midiAccess = midiAccess;
-      MIDI.createInputAndOutputLists(midiAccess);
-      MIDI.openLastUsedPorts();
-    }, function () {
-      return console.log('access failure');
-    });
+    const midiPromise = navigator.requestMIDIAccess()
+      .then( midiAccess => {
+        MIDI.midiAccess = midiAccess
+        MIDI.createInputAndOutputLists( midiAccess )
+        MIDI.openLastUsedPorts()
+      }, ()=> console.log('access failure') )
 
-    this.midiInputList = document.querySelector('#midiInputSelect');
-    this.midiOutputList = document.querySelector('#midiOutputSelect');
+    this.midiInputList = document.querySelector( '#midiInputSelect' )
+    this.midiOutputList = document.querySelector( '#midiOutputSelect' )
 
-    this.createChannels();
+    this.createChannels()
   },
-  openLastUsedPorts: function openLastUsedPorts() {
-    var lastMIDIInput = localStorage.getItem('midi.input'),
-        lastMIDIOutput = localStorage.getItem('midi.output');
 
-    if (lastMIDIInput !== null && lastMIDIInput !== undefined) {
-      this.selectInputByName(lastMIDIInput);
+  openLastUsedPorts() {
+    const lastMIDIInput = localStorage.getItem('midi.input'),
+          lastMIDIOutput = localStorage.getItem('midi.output')
+
+    if( lastMIDIInput !== null && lastMIDIInput !== undefined ) {
+      this.selectInputByName( lastMIDIInput ) 
     }
-    if (lastMIDIOutput !== null && lastMIDIOutput !== undefined) {
-      this.selectOutputByName(lastMIDIOutput);
-    }
-  },
-  createChannels: function createChannels() {
-    for (var i = 0; i < 16; i++) {
-      this.channels.push(Gibber.Channel(i));
+    if( lastMIDIOutput !== null && lastMIDIOutput !== undefined ) {
+      this.selectOutputByName( lastMIDIOutput ) 
     }
   },
-  createInputAndOutputLists: function createInputAndOutputLists(midiAccess) {
-    var optin = document.createElement('option');
-    optin.text = 'none';
-    var optout = document.createElement('option');
-    optout.text = 'none';
-    MIDI.midiInputList.add(optin);
-    MIDI.midiOutputList.add(optout);
-
-    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI;
-    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI;
-
-    var inputs = midiAccess.inputs;
-    var _iteratorNormalCompletion = true;
-    var _didIteratorError = false;
-    var _iteratorError = undefined;
-
-    try {
-      for (var _iterator = inputs.values()[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        var input = _step.value;
-
-        var opt = document.createElement('option');
-        opt.text = input.name;
-        opt.input = input;
-        MIDI.midiInputList.add(opt);
-      }
-    } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion && _iterator.return) {
-          _iterator.return();
-        }
-      } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
-        }
-      }
-    }
-
-    var outputs = midiAccess.outputs;
-    var _iteratorNormalCompletion2 = true;
-    var _didIteratorError2 = false;
-    var _iteratorError2 = undefined;
-
-    try {
-      for (var _iterator2 = outputs.values()[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var output = _step2.value;
-
-        var _opt = document.createElement('option');
-        _opt.output = output;
-        _opt.text = output.name;
-        MIDI.midiOutputList.add(_opt);
-      }
-    } catch (err) {
-      _didIteratorError2 = true;
-      _iteratorError2 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion2 && _iterator2.return) {
-          _iterator2.return();
-        }
-      } finally {
-        if (_didIteratorError2) {
-          throw _iteratorError2;
-        }
-      }
+  createChannels() {
+    for( let i = 0; i < 16; i++ ) {
+      this.channels.push( Gibber.Channel( i ) )
     }
   },
-  selectInputViaGUI: function selectInputViaGUI(e) {
-    if (e.target.selectedIndex !== 0) {
-      // does not equal 'none'
-      var opt = e.target[e.target.selectedIndex];
-      var input = opt.input;
-      input.onmidimessage = MIDI.handleMsg;
-      input.open();
-      MIDI.input = input;
-      localStorage.setItem('midi.input', input.name);
+
+  createInputAndOutputLists( midiAccess ) {
+    let optin = document.createElement( 'option' )
+    optin.text = 'none'
+    let optout = document.createElement( 'option' )
+    optout.text = 'none'
+    MIDI.midiInputList.add( optin )
+    MIDI.midiOutputList.add( optout )
+
+    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI
+    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI
+    
+    const inputs = midiAccess.inputs
+    for( let input of inputs.values() ) {
+      const opt = document.createElement( 'option' )
+      opt.text = input.name
+      opt.input = input
+      MIDI.midiInputList.add( opt )
+    }
+
+    const outputs = midiAccess.outputs
+    for( let output of outputs.values() ) {
+      const opt = document.createElement('option')
+      opt.output = output
+      opt.text = output.name
+      MIDI.midiOutputList.add(opt)
+    }
+
+  },
+
+  selectInputViaGUI( e ) {
+    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
+      const opt = e.target[ e.target.selectedIndex ]
+      const input = opt.input
+      input.onmidimessage = MIDI.handleMsg
+      input.open()
+      MIDI.input = input
+      localStorage.setItem( 'midi.input', input.name )
+    }
+  
+  },
+
+  selectOutputViaGUI( e ) {
+    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
+      const opt = e.target[ e.target.selectedIndex ]
+      const output = opt.output
+      output.open()
+      MIDI.output = output
+      localStorage.setItem( 'midi.output', output.name )
     }
   },
-  selectOutputViaGUI: function selectOutputViaGUI(e) {
-    if (e.target.selectedIndex !== 0) {
-      // does not equal 'none'
-      var opt = e.target[e.target.selectedIndex];
-      var output = opt.output;
-      output.open();
-      MIDI.output = output;
-      localStorage.setItem('midi.output', output.name);
-    }
-  },
-  selectInputByName: function selectInputByName(name) {
-    var inputs = MIDI.midiAccess.inputs;
-    var found = false;
-    var _iteratorNormalCompletion3 = true;
-    var _didIteratorError3 = false;
-    var _iteratorError3 = undefined;
 
-    try {
-      for (var _iterator3 = inputs.values()[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
-        var input = _step3.value;
-
-        if (name === input.name) {
-          input.onmidimessage = MIDI.handleMsg;
-          input.open();
-          MIDI.input = input;
-          Gibber.Environment.log('MIDI input ' + name + ' opened.');
-          found = true;
-        }
-      }
-    } catch (err) {
-      _didIteratorError3 = true;
-      _iteratorError3 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion3 && _iterator3.return) {
-          _iterator3.return();
-        }
-      } finally {
-        if (_didIteratorError3) {
-          throw _iteratorError3;
-        }
+  selectInputByName( name ) {
+    const inputs = MIDI.midiAccess.inputs
+    let found = false
+    for( let input of inputs.values() ) {
+      if( name === input.name ) {
+        input.onmidimessage = MIDI.handleMsg
+        input.open()
+        MIDI.input = input
+        Gibber.Environment.log( 'MIDI input ' + name + ' opened.' )
+        found = true
       }
     }
 
-    if (found === true) {
-      for (var i = 0; i < MIDI.midiInputList.children.length; i++) {
-        if (name === MIDI.midiInputList.children[i].innerText) {
-          MIDI.midiInputList.selectedIndex = i;
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiInputList.children.length; i++ ) {
+        if( name === MIDI.midiInputList.children[i].innerText ) {
+          MIDI.midiInputList.selectedIndex = i 
         }
       }
     }
   },
-  selectOutputByName: function selectOutputByName(name) {
-    var outputs = MIDI.midiAccess.outputs;
-    var found = false;
-    var _iteratorNormalCompletion4 = true;
-    var _didIteratorError4 = false;
-    var _iteratorError4 = undefined;
 
-    try {
-      for (var _iterator4 = outputs.values()[Symbol.iterator](), _step4; !(_iteratorNormalCompletion4 = (_step4 = _iterator4.next()).done); _iteratorNormalCompletion4 = true) {
-        var output = _step4.value;
-
-        if (name === output.name) {
-          output.onmidimessage = MIDI.handleMsg;
-          output.open();
-          MIDI.output = output;
-          Gibber.Environment.log('MIDI output ' + name + ' opened.');
-          found = true;
-        }
-      }
-    } catch (err) {
-      _didIteratorError4 = true;
-      _iteratorError4 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion4 && _iterator4.return) {
-          _iterator4.return();
-        }
-      } finally {
-        if (_didIteratorError4) {
-          throw _iteratorError4;
-        }
+  selectOutputByName( name ) {
+    const outputs = MIDI.midiAccess.outputs
+    let found = false
+    for( let output of outputs.values() ) {
+      if( name === output.name ) {
+        output.onmidimessage = MIDI.handleMsg
+        output.open()
+        MIDI.output = output
+        Gibber.Environment.log( 'MIDI output ' + name + ' opened.' )
+        found = true
       }
     }
 
-    if (found === true) {
-      for (var i = 0; i < MIDI.midiOutputList.children.length; i++) {
-        if (name === MIDI.midiOutputList.children[i].innerText) {
-          MIDI.midiOutputList.selectedIndex = i;
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiOutputList.children.length; i++ ) {
+        if( name === MIDI.midiOutputList.children[i].innerText ) {
+          MIDI.midiOutputList.selectedIndex = i 
         }
       }
     }
   },
-  send: function send(msg, timestamp) {
-    MIDI.output.send(msg, timestamp);
+
+  send( msg, timestamp ) {
+    MIDI.output.send( msg, timestamp )
   },
-  handleMsg: function handleMsg(msg) {
-    if (msg.data[0] !== 248) {
+
+  handleMsg( msg ) {
+    if( msg.data[0] !== 248 ) {
       //console.log( 'midi message:', msg.data[0], msg.data[1] )
     }
-    if (msg.data[0] === 0xf2) {
-      MIDI.timestamps.length = 0;
-      MIDI.clockCount = 0;
-      MIDI.lastClockTime = null;
-    } else if (msg.data[0] === 0xfa) {
-      MIDI.running = true;
-    } else if (msg.data[0] === 0xfc) {
-      MIDI.running = false;
-    } else if (msg.data[0] === 248 && MIDI.running === true) {
-      // MIDI beat clock
+    if( msg.data[0] === 0xf2 ) {
+      MIDI.timestamps.length = 0
+      MIDI.clockCount = 0
+      MIDI.lastClockTime = null
+    } else if (msg.data[0] === 0xfa ) {
+      MIDI.running = true
+    } else if (msg.data[0] === 0xfc ) {
+      MIDI.running = false
+    } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
 
-      if (MIDI.timestamps.length > 0) {
-        var diff = msg.timeStamp - MIDI.lastClockTime;
-        MIDI.timestamps.unshift(diff);
-        while (MIDI.timestamps.length > 10) {
-          MIDI.timestamps.pop();
-        }var sum = MIDI.timestamps.reduce(function (a, b) {
-          return a + b;
-        });
-        var avg = sum / MIDI.timestamps.length;
+      if( MIDI.timestamps.length > 0 ) {
+        const diff = msg.timeStamp - MIDI.lastClockTime
+        MIDI.timestamps.unshift( diff )
+        while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
 
-        var bpm = 1000 / (avg * 24) * 60;
-        Gibber.Scheduler.bpm = bpm;
+        const sum = MIDI.timestamps.reduce( (a,b) => a+b )
+        const avg = sum / MIDI.timestamps.length
 
-        if (MIDI.clockCount++ === 23) {
-          Gibber.Scheduler.advanceBeat();
-          MIDI.clockCount = 0;
+        let bpm = (1000 / (avg * 24)) * 60
+        Gibber.Scheduler.bpm = bpm
+ 
+        if( MIDI.clockCount++ === 23 ) {
+          Gibber.Scheduler.advanceBeat()
+          MIDI.clockCount = 0
         }
 
-        MIDI.lastClockTime = msg.timeStamp;
-      } else {
-        if (MIDI.lastClockTime !== null) {
-          var _diff = msg.timeStamp - MIDI.lastClockTime;
-          MIDI.timestamps.unshift(_diff);
-          MIDI.lastClockTime = msg.timeStamp;
-        } else {
-          MIDI.lastClockTime = msg.timeStamp;
+        MIDI.lastClockTime = msg.timeStamp
+        
+      }else{
+        if( MIDI.lastClockTime !== null ) {
+          const diff = msg.timeStamp - MIDI.lastClockTime
+          MIDI.timestamps.unshift( diff )
+          MIDI.lastClockTime = msg.timeStamp
+        }else{
+          MIDI.lastClockTime = msg.timeStamp
         }
-        MIDI.clockCount++;
-      }
+        MIDI.clockCount++
+      }    
     }
+
   },
-  clear: function clear() {
+  
+  clear() { 
     // This should only happen on a MIDI Stop message
     // this.timestamps.length = 0
     // this.clockCount = 0
     // this.lastClockTime = null
   },
-
   running: false,
-  timestamps: [],
+  timestamps:[],
   clockCount: 0,
-  lastClockTime: null
+  lastClockTime:null
 
-};
+}
 
-module.exports = MIDI;
+module.exports = MIDI
+
 },{}],86:[function(require,module,exports){
-'use strict';
+const genish = require( 'genish.js' )
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
-var genish = require('genish.js');
-
-module.exports = function (Gibber) {
-
-  var Gen = {
-    init: function init() {},
+module.exports = function( Gibber ) {
 
 
-    genish: genish,
+let Gen  = {
+  init() {
 
-    names: [],
-    connected: [],
+  },
 
-    // if property is !== ugen (it's a number) a Param must be made using a default
-    create: function create(name) {
-      var obj = Object.create(this),
-          count = 0,
-          params = Array.prototype.slice.call(arguments, 1);
+  genish,
 
-      obj.name = name;
-      obj.active = false;
+  names:[],
+  connected: [],
 
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
+  // if property is !== ugen (it's a number) a Param must be made using a default
+  create( name ) {
+    let obj = Object.create( this ),
+        count = 0,
+        params = Array.prototype.slice.call( arguments, 1 )
+    
+    obj.name = name
+    obj.active = false
+    
+    for( let key of Gen.functions[ name ].properties ) { 
 
-      try {
-        var _loop = function _loop() {
-          var key = _step.value;
-
-
-          var value = params[count++];
-          obj[key] = function (v) {
-            if (v === undefined) {
-              return value;
-            } else {
-              value = v;
-              if (obj.active) {
-                //onsole.log( `${obj.track} genp ${obj.paramID} ${obj[ key ].uid} ${v}` )
-                Gibber.Communication.send('genp ' + obj.paramID + ' ' + obj[key].uid + ' ' + v);
-              }
-            }
-          };
-          obj[key].uid = Gen.getUID();
-
-          Gibber.addSequencingToMethod(obj, key);
-        };
-
-        for (var _iterator = Gen.functions[name].properties[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          _loop();
-        }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
+      let value = params[ count++ ]
+      obj[ key ] = ( v ) => {
+        if( v === undefined ) {
+          return value
+        }else{
+          value = v
+          if( obj.active ) {
+            //onsole.log( `${obj.track} genp ${obj.paramID} ${obj[ key ].uid} ${v}` )
+            Gibber.Communication.send( `genp ${obj.paramID} ${obj[ key ].uid} ${v}` ) 
           }
         }
       }
+      obj[ key ].uid = Gen.getUID()
 
-      return obj;
-    },
-
-
-    assignTrackAndParamID: function assignTrackAndParamID(graph, track, id) {
-      graph.paramID = id;
-      graph.track = track;
-
-      var count = 0,
-          param = void 0;
-      while (param = graph[count++]) {
-        if (_typeof(param()) === 'object') {
-          Gen.assignTrackAndParamID(param(), track, id);
-        }
-      }
-    },
-
-    clear: function clear() {
-      var _iteratorNormalCompletion2 = true;
-      var _didIteratorError2 = false;
-      var _iteratorError2 = undefined;
-
-      try {
-        for (var _iterator2 = Gen.connected[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-          var ugen = _step2.value;
-
-          Gibber.Communication.send('ungen ' + ugen.paramID);
-        }
-      } catch (err) {
-        _didIteratorError2 = true;
-        _iteratorError2 = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion2 && _iterator2.return) {
-            _iterator2.return();
-          }
-        } finally {
-          if (_didIteratorError2) {
-            throw _iteratorError2;
-          }
-        }
-      }
-
-      Gen.connected.length = 0;
-    },
-
-
-    _count: 0,
-
-    getUID: function getUID() {
-      return 'p' + Gen._count++;
-    },
-
-
-    time: 'time',
-
-    composites: {
-      lfo: function lfo() {
-        var frequency = arguments.length <= 0 || arguments[0] === undefined ? .1 : arguments[0];
-        var amp = arguments.length <= 1 || arguments[1] === undefined ? .5 : arguments[1];
-        var center = arguments.length <= 2 || arguments[2] === undefined ? .5 : arguments[2];
-
-        var _cycle = cycle(frequency),
-            _mul = mul(_cycle, amp),
-            _add = add(center, _mul);
-
-        _add.frequency = function (v) {
-          if (v === undefined) {
-            return _cycle[0]();
-          } else {
-            _cycle[0](v);
-          }
-        };
-
-        _add.amp = function (v) {
-          if (v === undefined) {
-            return _mul[1]();
-          } else {
-            _mul[1](v);
-          }
-        };
-
-        _add.center = function (v) {
-          if (v === undefined) {
-            return _add[0]();
-          } else {
-            _add[0](v);
-          }
-        };
-
-        Gibber.addSequencingToMethod(_add, 'frequency');
-        Gibber.addSequencingToMethod(_add, 'amp');
-        Gibber.addSequencingToMethod(_add, 'center');
-
-        return _add;
-      },
-      fade: function fade() {
-        var time = arguments.length <= 0 || arguments[0] === undefined ? 1 : arguments[0];
-        var from = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-        var to = arguments.length <= 2 || arguments[2] === undefined ? 0 : arguments[2];
-
-        var fade = void 0,
-            amt = void 0,
-            beatsInSeconds = time * (60 / Gibber.Live.LOM.bpm);
-
-        if (from > to) {
-          amt = from - to;
-
-          fade = gtp(sub(from, accum(div(amt, mul(beatsInSeconds, samplerate)), 0)), to);
-        } else {
-          amt = to - from;
-          fade = add(from, ltp(accum(div(amt, mul(beatsInSeconds, samplerate)), 0), to));
-        }
-
-        // XXX should this be available in ms? msToBeats()?
-        var numbeats = time / 4;
-        fade.shouldKill = {
-          after: numbeats,
-          final: to
-        };
-
-        return fade;
-      },
-      beats: function beats(num) {
-        return rate('in1', num);
-        // beat( n ) => rate(in1, n)
-        // final string should be rate( in1, num )
-      }
-    },
-
-    export: function _export(obj) {
-      genish.export(obj);
+      Gibber.addSequencingToMethod( obj, key )
     }
-  };
 
-  Gen.init();
+    return obj
+  },
+  
 
-  return Gen;
-};
+  assignTrackAndParamID: function( graph, track, id ) {
+    graph.paramID = id
+    graph.track = track
+
+    let count = 0, param
+    while( param = graph[ count++ ] ) {
+      if( typeof param() === 'object' ) {
+        Gen.assignTrackAndParamID( param(), track, id )
+      }
+    }
+  },
+
+  clear() {
+    for( let ugen of Gen.connected ) {
+      Gibber.Communication.send( `ungen ${ugen.paramID}` )
+    }
+
+    Gen.connected.length = 0
+  },
+
+  _count: 0,
+
+  getUID() {
+    return 'p' + Gen._count++
+  },
+
+  time: 'time',
+
+  composites: { 
+    lfo( frequency = .1, amp = .5, center = .5 ) {
+      let _cycle = cycle( frequency ),
+          _mul   = mul( _cycle, amp ),
+          _add   = add( center, _mul ) 
+       
+      _add.frequency = (v) => {
+        if( v === undefined ) {
+          return _cycle[ 0 ]()
+        }else{
+          _cycle[0]( v )
+        }
+      }
+
+      _add.amp = (v) => {
+        if( v === undefined ) {
+          return _mul[ 1 ]()
+        }else{
+          _mul[1]( v )
+        }
+      }
+
+      _add.center = (v) => {
+        if( v === undefined ) {
+          return _add[ 0 ]()
+        }else{
+          _add[0]( v )
+        }
+      }
+
+      Gibber.addSequencingToMethod( _add, 'frequency' )
+      Gibber.addSequencingToMethod( _add, 'amp' )
+      Gibber.addSequencingToMethod( _add, 'center' )
+
+      return _add
+    },
+
+    fade( time = 1, from = 1, to = 0 ) {
+      let fade, amt, beatsInSeconds = time * ( 60 / Gibber.Live.LOM.bpm )
+     
+      if( from > to ) {
+        amt = from - to
+
+        fade = gtp( sub( from, accum( div( amt, mul(beatsInSeconds, samplerate ) ), 0 ) ), to )
+      }else{
+        amt = to - from
+        fade = add( from, ltp( accum( div( amt, mul( beatsInSeconds, samplerate ) ), 0 ), to ) )
+      }
+      
+      // XXX should this be available in ms? msToBeats()?
+      let numbeats = time / 4
+      fade.shouldKill = {
+        after: numbeats, 
+        final: to
+      }
+      
+      return fade
+    },
+    
+    beats( num ) {
+      return rate( 'in1', num )
+      // beat( n ) => rate(in1, n)
+      // final string should be rate( in1, num )
+    }
+  },
+
+  export( obj ) {
+    genish.export( obj )
+  }
+}
+
+Gen.init()
+
+return Gen 
+
+}
+
 
 /*
 
@@ -6907,507 +6754,450 @@ a = LFO( .5, .25, .5 )
 // every array indicates presence of new ugen
 a.graph = [ 'add', 'bias', [ 'mul', 'amp', [ 'cycle', 'frequency' ] ] ]
 */
+
 },{"genish.js":36}],87:[function(require,module,exports){
-'use strict';
+module.exports = function( Gibber ) {
 
-module.exports = function (Gibber) {
+"use strict"
 
-  "use strict";
+let PatternProto = Object.create( function(){} )
 
-  var PatternProto = Object.create(function () {});
+Object.assign( PatternProto, {
+  DNR: -987654321,
+  concat( _pattern ) { this.values = this.values.concat( _pattern.values ) },  
+  toString() { return this.values.toString() },
+  valueOf() { return this.values },
 
-  Object.assign(PatternProto, {
-    DNR: -987654321,
-    concat: function concat(_pattern) {
-      this.values = this.values.concat(_pattern.values);
-    },
-    toString: function toString() {
-      return this.values.toString();
-    },
-    valueOf: function valueOf() {
-      return this.values;
-    },
-    getLength: function getLength() {
-      var l = void 0;
-      if (this.start <= this.end) {
-        l = this.end - this.start + 1;
-      } else {
-        l = this.values.length + this.end - this.start + 1;
-      }
-      return l;
-    },
-    runFilters: function runFilters(val, idx) {
-      var args = [val, 1, idx]; // 1 is phaseModifier
+  getLength() {
+    let l
+    if( this.start <= this.end ) {
+      l = this.end - this.start + 1
+    }else{
+      l = this.values.length + this.end - this.start + 1
+    }
+    return l
+  },
 
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
+  runFilters( val, idx ) {
+    let args = [ val, 1, idx ] // 1 is phaseModifier
 
-      try {
-        for (var _iterator = this.filters[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          var filter = _step.value;
-
-          args = filter(args, this);
-        }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion && _iterator.return) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
-        }
-      }
-
-      return args;
-    },
-    checkForUpdateFunction: function checkForUpdateFunction(name) {
-      for (var _len = arguments.length, args = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-        args[_key - 1] = arguments[_key];
-      }
-
-      if (this.listeners[name]) {
-        this.listeners[name].apply(this, args);
-      } else if (Pattern.listeners[name]) {
-        Pattern.listeners[name].apply(this, args);
-      }
-    },
-
-
-    // used when _onchange has not been assigned to individual patterns
-    _onchange: function _onchange() {}
-  });
-
-  var Pattern = function Pattern() {
-    for (var _len2 = arguments.length, args = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-      args[_key2] = arguments[_key2];
+    for( let filter of this.filters ) {
+      args = filter( args, this ) 
     }
 
-    /*
-     *if( ! ( this instanceof Pattern ) ) {
-     *  let args = Array.prototype.slice.call( arguments, 0 )
-     *  return Gibber.construct( Pattern, args )
-     *}
-     */
-    var isFunction = args.length === 1 && typeof args[0] === 'function';
+    return args
+  },
 
-    var fnc = function fnc() {
-      var len = fnc.getLength(),
-          idx = void 0,
-          val = void 0,
-          args = void 0;
+  checkForUpdateFunction( name, ...args ) {
+    if( this.listeners[ name ] ) {
+      this.listeners[ name ].apply( this, args )
+    }else if( Pattern.listeners[ name ] ) {
+      Pattern.listeners[ name ].apply( this, args )
+    }
+  },
 
-      if (len === 1) {
-        idx = 0;
-      } else {
-        idx = fnc.phase > -1 ? Math.floor(fnc.start + fnc.phase % len) : Math.floor(fnc.end + fnc.phase % len);
-      }
+  // used when _onchange has not been assigned to individual patterns
+  _onchange() {},
+})
 
-      if (isFunction) {
-        val = fnc.values[0]();
-        args = fnc.runFilters(val, idx);
-        val = args[0];
-      } else {
-        val = fnc.values[Math.floor(idx % fnc.values.length)];
-        args = fnc.runFilters(val, idx);
+let Pattern = function( ...args ) {
+  /*
+   *if( ! ( this instanceof Pattern ) ) {
+   *  let args = Array.prototype.slice.call( arguments, 0 )
+   *  return Gibber.construct( Pattern, args )
+   *}
+   */
+  let isFunction = args.length === 1 && typeof args[0] === 'function'
 
-        fnc.phase += fnc.stepSize * args[1];
-        val = args[0];
-      }
-      // check to see if value is a function, and if so evaluate it
-      //if( typeof val === 'function' ) {
+  let fnc = function() {
+    let len = fnc.getLength(),
+        idx, val, args
+    
+    if( len === 1 ) { 
+      idx = 0 
+    }else{
+      idx = fnc.phase > -1 ? Math.floor( fnc.start + (fnc.phase % len ) ) : Math.floor( fnc.end + (fnc.phase % len ) )
+    }
+
+    if( isFunction ) {
+      val = fnc.values[ 0 ]()
+      args = fnc.runFilters( val, idx )
+      val = args[0]
+    }else{
+      val = fnc.values[ Math.floor( idx % fnc.values.length ) ]
+      args = fnc.runFilters( val, idx )
+    
+      fnc.phase += fnc.stepSize * args[ 1 ]
+      val = args[ 0 ]
+    }
+    // check to see if value is a function, and if so evaluate it
+    //if( typeof val === 'function' ) {
       //val = val()
-      //}
-      /*else if ( Array.isArray( val ) ) {
-        // if val is an Array, loop through array and evaluate any functions found there. TODO: IS THIS SMART?
-         for( let i = 0; i < val.length; i++ ){
-          if( typeof val[ i ] === 'function' ) {
-            val[ i ] = val[ i ]()
+    //}
+    /*else if ( Array.isArray( val ) ) {
+      // if val is an Array, loop through array and evaluate any functions found there. TODO: IS THIS SMART?
+
+      for( let i = 0; i < val.length; i++ ){
+        if( typeof val[ i ] === 'function' ) {
+          val[ i ] = val[ i ]()
+        }
+      }
+    }
+    */
+
+    // if pattern has update function, add new value to array
+    // values are popped when updated by animation scheduler
+    if( fnc.update && fnc.update.value ) fnc.update.value.unshift( val )
+    
+    if( val === fnc.DNR ) val = null
+
+    return val
+  }
+   
+  Object.assign( fnc, {
+    start : 0,
+    end   : 0,
+    phase : 0,
+    values : args, 
+    //values : typeof arguments[0] !== 'string' || arguments.length > 1 ? Array.prototype.slice.call( arguments, 0 ) : arguments[0].split(''),    
+    original : null,
+    storage : [],
+    stepSize : 1,
+    integersOnly : false,
+    filters : [],
+    onchange : null,
+
+    range() {
+      let start, end
+      
+      if( Array.isArray( arguments[0] ) ) {
+        start = arguments[0][0]
+        end   = arguments[0][1]
+      }else{
+        start = arguments[0]
+        end   = arguments[1]
+      }
+      
+      if( start < end ) {
+        fnc.start = start
+        fnc.end = end
+      }else{
+        fnc.start = end
+        fnc.end = start
+      }
+
+      this.checkForUpdateFunction( 'range', fnc )
+
+      return fnc
+    },
+    
+    set() {
+      let args = Array.isArray( arguments[ 0 ] ) ? arguments[ 0 ] : arguments
+      
+      fnc.values.length = 0
+      
+      for( let i = 0; i < args.length; i++ ) {
+        fnc.values.push( args[ i ] )
+      }
+      
+      fnc.end = fnc.values.length - 1
+      
+      // if( fnc.end > fnc.values.length - 1 ) {
+      //   fnc.end = fnc.values.length - 1
+      // }else if( fnc.end < )
+      
+      fnc._onchange()
+      
+      return fnc
+    },
+     
+    reverse() { 
+      //fnc.values.reverse(); 
+      let array = fnc.values,
+          left = null,
+          right = null,
+          length = array.length,
+          temporary;
+          
+      for ( left = 0, right = length - 1; left < right; left += 1, right -= 1 ) {
+        temporary = array[ left ]
+        array[ left ] = array[ right ]
+        array[ right ] = temporary;
+      }
+      
+      fnc._onchange() 
+      
+      return fnc
+    },
+    // humanize: function( randomMin, randomMax ) {
+ //      let lastAmt = 0
+ //
+ //      for( let i = 0; i < this.filters.length; i++ ) {
+ //        if( this.filters[ i ].humanize ) {
+ //          lastAmt = this.filters[ i ].lastAmt
+ //          this.filters.splice( i, 1 )
+ //          break;
+ //        }
+ //      }
+ //
+ //      let filter = function( args ) {
+ //        console.log( filter.lastAmt, args[0])
+ //        args[ 0 ] -= filter.lastAmt
+ //        filter.lastAmt = Gibber.Clock.time( Gibber.Utilities.rndi( randomMin, randomMax ) )
+ //
+ //        console.log( "LA", filter.lastAmt )
+ //        args[0] += filter.lastAmt
+ //
+ //        return args
+ //      }
+ //      filter.lastAmt = lastAmt
+ //      filter.humanize = true
+ //
+ //      this.filters.push( filter )
+ //
+ //      return this
+ //    },
+    repeat() {
+      let counts = {}
+    
+      for( let i = 0; i < arguments.length; i +=2 ) {
+        counts[ arguments[ i ] ] = {
+          phase: 0,
+          target: arguments[ i + 1 ]
+        }
+      }
+      
+      let repeating = false, repeatValue = null, repeatIndex = null
+      let filter = function( args ) {
+        let value = args[ 0 ], phaseModifier = args[ 1 ], output = args
+        
+        //console.log( args, counts )
+        if( repeating === false && counts[ value ] ) {
+          repeating = true
+          repeatValue = value
+          repeatIndex = args[2]
+        }
+        
+        if( repeating === true ) {
+          if( counts[ repeatValue ].phase !== counts[ repeatValue ].target ) {
+            output[ 0 ] = repeatValue            
+            output[ 1 ] = 0
+            output[ 2 ] = repeatIndex
+            //[ val, 1, idx ]
+            counts[ repeatValue ].phase++
+          }else{
+            counts[ repeatValue ].phase = 0
+            output[ 1 ] = 1
+            if( value !== repeatValue ) { 
+              repeating = false
+            }else{
+              counts[ repeatValue ].phase++
+            }
+          }
+        }
+      
+        return output
+      }
+    
+      fnc.filters.push( filter )
+    
+      return fnc
+    },
+  
+    reset() { fnc.values = fnc.original.slice( 0 ); fnc._onchange(); return fnc; },
+    store() { fnc.storage[ fnc.storage.length ] = fnc.values.slice( 0 ); return fnc; },
+
+    transpose( amt ) { 
+      for( let i = 0; i < fnc.values.length; i++ ) { 
+        let val = fnc.values[ i ]
+        
+        if( Array.isArray( val ) ) {
+          for( let j = 0; j < val.length; j++ ) {
+            if( typeof val[ j ] === 'number' ) {
+              val[ j ] = fnc.integersOnly ? Math.round( val[ j ] + amt ) : val[ j ] + amt
+            }
+          }
+        }else{
+          if( typeof val === 'number' ) {
+            fnc.values[ i ] = fnc.integersOnly ? Math.round( fnc.values[ i ] + amt ) : fnc.values[ i ] + amt
           }
         }
       }
-      */
+      
+      fnc._onchange()
+      
+      return fnc
+    },
 
-      // if pattern has update function, add new value to array
-      // values are popped when updated by animation scheduler
-      if (fnc.update && fnc.update.value) fnc.update.value.unshift(val);
+    shuffle() { 
+      Gibber.Utility.shuffle( fnc.values )
+      fnc._onchange()
+      
+      return fnc
+    },
 
-      if (val === fnc.DNR) val = null;
-
-      return val;
-    };
-
-    Object.assign(fnc, {
-      start: 0,
-      end: 0,
-      phase: 0,
-      values: args,
-      //values : typeof arguments[0] !== 'string' || arguments.length > 1 ? Array.prototype.slice.call( arguments, 0 ) : arguments[0].split(''),    
-      original: null,
-      storage: [],
-      stepSize: 1,
-      integersOnly: false,
-      filters: [],
-      onchange: null,
-
-      range: function range() {
-        var start = void 0,
-            end = void 0;
-
-        if (Array.isArray(arguments[0])) {
-          start = arguments[0][0];
-          end = arguments[0][1];
-        } else {
-          start = arguments[0];
-          end = arguments[1];
-        }
-
-        if (start < end) {
-          fnc.start = start;
-          fnc.end = end;
-        } else {
-          fnc.start = end;
-          fnc.end = start;
-        }
-
-        this.checkForUpdateFunction('range', fnc);
-
-        return fnc;
-      },
-      set: function set() {
-        var args = Array.isArray(arguments[0]) ? arguments[0] : arguments;
-
-        fnc.values.length = 0;
-
-        for (var i = 0; i < args.length; i++) {
-          fnc.values.push(args[i]);
-        }
-
-        fnc.end = fnc.values.length - 1;
-
-        // if( fnc.end > fnc.values.length - 1 ) {
-        //   fnc.end = fnc.values.length - 1
-        // }else if( fnc.end < )
-
-        fnc._onchange();
-
-        return fnc;
-      },
-      reverse: function reverse() {
-        //fnc.values.reverse(); 
-        var array = fnc.values,
-            left = null,
-            right = null,
-            length = array.length,
-            temporary = void 0;
-
-        for (left = 0, right = length - 1; left < right; left += 1, right -= 1) {
-          temporary = array[left];
-          array[left] = array[right];
-          array[right] = temporary;
-        }
-
-        fnc._onchange();
-
-        return fnc;
-      },
-
-      // humanize: function( randomMin, randomMax ) {
-      //      let lastAmt = 0
-      //
-      //      for( let i = 0; i < this.filters.length; i++ ) {
-      //        if( this.filters[ i ].humanize ) {
-      //          lastAmt = this.filters[ i ].lastAmt
-      //          this.filters.splice( i, 1 )
-      //          break;
-      //        }
-      //      }
-      //
-      //      let filter = function( args ) {
-      //        console.log( filter.lastAmt, args[0])
-      //        args[ 0 ] -= filter.lastAmt
-      //        filter.lastAmt = Gibber.Clock.time( Gibber.Utilities.rndi( randomMin, randomMax ) )
-      //
-      //        console.log( "LA", filter.lastAmt )
-      //        args[0] += filter.lastAmt
-      //
-      //        return args
-      //      }
-      //      filter.lastAmt = lastAmt
-      //      filter.humanize = true
-      //
-      //      this.filters.push( filter )
-      //
-      //      return this
-      //    },
-      repeat: function repeat() {
-        var counts = {};
-
-        for (var i = 0; i < arguments.length; i += 2) {
-          counts[arguments[i]] = {
-            phase: 0,
-            target: arguments[i + 1]
-          };
-        }
-
-        var repeating = false,
-            repeatValue = null,
-            repeatIndex = null;
-        var filter = function filter(args) {
-          var value = args[0],
-              phaseModifier = args[1],
-              output = args;
-
-          //console.log( args, counts )
-          if (repeating === false && counts[value]) {
-            repeating = true;
-            repeatValue = value;
-            repeatIndex = args[2];
-          }
-
-          if (repeating === true) {
-            if (counts[repeatValue].phase !== counts[repeatValue].target) {
-              output[0] = repeatValue;
-              output[1] = 0;
-              output[2] = repeatIndex;
-              //[ val, 1, idx ]
-              counts[repeatValue].phase++;
+    scale( amt ) { 
+      fnc.values.map( (val, idx, array) => {
+        if( Array.isArray( val ) ) {
+          array[ idx ] = val.map( inside  => {
+            if( typeof inside === 'number' ) {
+              return fnc.integersOnly ? Math.round( inside * amt ) : inside * amt
             } else {
-              counts[repeatValue].phase = 0;
-              output[1] = 1;
-              if (value !== repeatValue) {
-                repeating = false;
-              } else {
-                counts[repeatValue].phase++;
-              }
+              return inside
             }
-          }
-
-          return output;
-        };
-
-        fnc.filters.push(filter);
-
-        return fnc;
-      },
-      reset: function reset() {
-        fnc.values = fnc.original.slice(0);fnc._onchange();return fnc;
-      },
-      store: function store() {
-        fnc.storage[fnc.storage.length] = fnc.values.slice(0);return fnc;
-      },
-      transpose: function transpose(amt) {
-        for (var i = 0; i < fnc.values.length; i++) {
-          var val = fnc.values[i];
-
-          if (Array.isArray(val)) {
-            for (var j = 0; j < val.length; j++) {
-              if (typeof val[j] === 'number') {
-                val[j] = fnc.integersOnly ? Math.round(val[j] + amt) : val[j] + amt;
-              }
-            }
-          } else {
-            if (typeof val === 'number') {
-              fnc.values[i] = fnc.integersOnly ? Math.round(fnc.values[i] + amt) : fnc.values[i] + amt;
-            }
+          })
+        }else{
+          if( typeof val === 'number' ) {
+            array[ idx ] = fnc.integersOnly ? Math.round( val * amt ) : val * amt
           }
         }
+      })
 
-        fnc._onchange();
+      fnc._onchange()
+      
+      return fnc
+    },
 
-        return fnc;
-      },
-      shuffle: function shuffle() {
-        Gibber.Utility.shuffle(fnc.values);
-        fnc._onchange();
-
-        return fnc;
-      },
-      scale: function scale(amt) {
-        fnc.values.map(function (val, idx, array) {
-          if (Array.isArray(val)) {
-            array[idx] = val.map(function (inside) {
-              if (typeof inside === 'number') {
-                return fnc.integersOnly ? Math.round(inside * amt) : inside * amt;
-              } else {
-                return inside;
-              }
-            });
-          } else {
-            if (typeof val === 'number') {
-              array[idx] = fnc.integersOnly ? Math.round(val * amt) : val * amt;
-            }
-          }
-        });
-
-        fnc._onchange();
-
-        return fnc;
-      },
-      flip: function flip() {
-        var start = [],
-            ordered = null;
-
-        ordered = fnc.values.filter(function (elem) {
-          var shouldPush = start.indexOf(elem) === -1;
-          if (shouldPush) start.push(elem);
-          return shouldPush;
-        });
-
-        ordered = ordered.sort(function (a, b) {
-          return a - b;
-        });
-
-        for (var i = 0; i < fnc.values.length; i++) {
-          var pos = ordered.indexOf(fnc.values[i]);
-          fnc.values[i] = ordered[ordered.length - pos - 1];
-        }
-
-        fnc._onchange();
-
-        return fnc;
-      },
-      invert: function invert() {
-        var prime0 = fnc.values[0];
-
-        for (var i = 1; i < fnc.values.length; i++) {
-          if (typeof fnc.values[i] === 'number') {
-            var inverse = prime0 + (prime0 - fnc.values[i]);
-            fnc.values[i] = inverse;
-          }
-        }
-
-        fnc._onchange();
-
-        return fnc;
-      },
-      switch: function _switch(to) {
-        if (fnc.storage[to]) {
-          fnc.values = fnc.storage[to].slice(0);
-        }
-
-        fnc._onchange();
-
-        return fnc;
-      },
-      rotate: function rotate(amt) {
-        if (amt > 0) {
-          while (amt > 0) {
-            var end = fnc.values.pop();
-            fnc.values.unshift(end);
-            amt--;
-          }
-        } else if (amt < 0) {
-          while (amt < 0) {
-            var begin = fnc.values.shift();
-            fnc.values.push(begin);
-            amt++;
-          }
-        }
-
-        fnc._onchange();
-
-        return fnc;
+    flip() {
+      let start = [],
+          ordered = null
+    
+      ordered = fnc.values.filter( function(elem) {
+      	let shouldPush = start.indexOf( elem ) === -1
+        if( shouldPush ) start.push( elem )
+        return shouldPush
+      })
+    
+      ordered = ordered.sort( function( a,b ){ return a - b } )
+    
+      for( let i = 0; i < fnc.values.length; i++ ) {
+        let pos = ordered.indexOf( fnc.values[ i ] )
+        fnc.values[ i ] = ordered[ ordered.length - pos - 1 ]
       }
-    });
-
-    fnc.retrograde = fnc.reverse.bind(fnc);
-
-    fnc.end = fnc.values.length - 1;
-
-    fnc.original = fnc.values.slice(0);
-    fnc.storage[0] = fnc.original.slice(0);
-
-    fnc.integersOnly = fnc.values.every(function (n) {
-      return n === +n && n === (n | 0);
-    });
-
-    var methodNames = ['rotate', 'switch', 'invert', 'reset', 'flip', 'transpose', 'reverse', 'shuffle', 'scale', 'store', 'range', 'set'];
-
-    var _iteratorNormalCompletion2 = true;
-    var _didIteratorError2 = false;
-    var _iteratorError2 = undefined;
-
-    try {
-      for (var _iterator2 = methodNames[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-        var key = _step2.value;
-        Gibber.addSequencingToMethod(fnc, key, 1);
-      }
-    } catch (err) {
-      _didIteratorError2 = true;
-      _iteratorError2 = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion2 && _iterator2.return) {
-          _iterator2.return();
-        }
-      } finally {
-        if (_didIteratorError2) {
-          throw _iteratorError2;
+      
+      fnc._onchange()
+    
+  		return fnc
+    },
+    
+    invert() {
+      let prime0 = fnc.values[ 0 ]
+      
+      for( let i = 1; i < fnc.values.length; i++ ) {
+        if( typeof fnc.values[ i ] === 'number' ) {
+          let inverse = prime0 + (prime0 - fnc.values[ i ])
+          fnc.values[ i ] = inverse
         }
       }
+      
+      fnc._onchange()
+      
+  		return fnc
+    },
+  
+    switch( to ) {
+      if( fnc.storage[ to ] ) {
+        fnc.values = fnc.storage[ to ].slice( 0 )
+      }
+      
+      fnc._onchange()
+      
+      return fnc
+    },
+  
+    rotate( amt ) {
+      if( amt > 0 ) {
+        while( amt > 0 ) {
+          let end = fnc.values.pop()
+          fnc.values.unshift( end )
+          amt--
+        }
+      }else if( amt < 0 ) {
+        while( amt < 0 ) {
+          let begin = fnc.values.shift()
+          fnc.values.push( begin )
+          amt++
+        }
+      }
+      
+      fnc._onchange()
+      
+      return fnc
     }
+  })
+  
+  fnc.retrograde = fnc.reverse.bind( fnc )
+  
+  fnc.end = fnc.values.length - 1
+  
+  fnc.original = fnc.values.slice( 0 )
+  fnc.storage[ 0 ] = fnc.original.slice( 0 )
+  
+  fnc.integersOnly = fnc.values.every( function( n ) { return n === +n && n === (n|0); })
+  
+  let methodNames =  [
+    'rotate','switch','invert','reset', 'flip',
+    'transpose','reverse','shuffle','scale',
+    'store', 'range', 'set'
+  ]
+   
+  for( let key of methodNames ) { Gibber.addSequencingToMethod( fnc, key, 1 ) }
+  
+  fnc.listeners = {}
+  fnc.sequences = {}
 
-    fnc.listeners = {};
-    fnc.sequences = {};
+  // TODO: Gibber.createProxyProperties( fnc, { 'stepSize':0, 'start':0, 'end':0 })
+  
+  fnc.__proto__ = PatternProto 
+  
+  return fnc
+}
 
-    // TODO: Gibber.createProxyProperties( fnc, { 'stepSize':0, 'start':0, 'end':0 })
+Pattern.listeners = {}
 
-    fnc.__proto__ = PatternProto;
+Pattern.listeners.range = function( fnc ) {
+  //if( !Notation.isRunning ) return
+  
+  // TODO: don't use Gibber.currentTrack, store the object in the pattern
+  var obj = Gibber.currentTrack,
+      rangeStart = obj.markup.textMarkers[ fnc.patternName ][ fnc.start ].find(),
+      rangeEnd   = obj.markup.textMarkers[ fnc.patternName ][ fnc.end ].find()
 
-    return fnc;
-  };
+  if( !fnc.range.init ) {
+    fnc.range.init = true
+    var ptrnStart = obj.markup.textMarkers[ fnc.patternName ][ 0 ].find(),
+        ptrnEnd = obj.markup.textMarkers[ fnc.patternName ][ obj.markup.textMarkers[ fnc.patternName ].length - 1 ].find()
 
-  Pattern.listeners = {};
+    //fnc.column.editor.markText( ptrnStart.from, ptrnEnd.to, { className:'rangeOutside' })
+    //Gibber.Environment.codemirror.markText( ptrnStart.from, ptrnEnd.to, { className:'pattern-update-range-outside' })
+    if( !Pattern.listeners.range.initialzied ) Pattern.listeners.range.init()
+  }
 
-  Pattern.listeners.range = function (fnc) {
-    //if( !Notation.isRunning ) return
+  if( fnc.range.mark ) fnc.range.mark.clear()
+  //fnc.range.mark = fnc.column.editor.markText( rangeStart.from, rangeEnd.to, { className:'rangeInside' })
+  // TODO: Dont use GE.codemirror... how else do I get this? stored in pattern is created?
+  fnc.range.mark = Gibber.Environment.codemirror.markText( rangeStart.from, rangeEnd.to, { className:'pattern-update-range-inside' })
+}
 
-    // TODO: don't use Gibber.currentTrack, store the object in the pattern
-    var obj = Gibber.currentTrack,
-        rangeStart = obj.markup.textMarkers[fnc.patternName][fnc.start].find(),
-        rangeEnd = obj.markup.textMarkers[fnc.patternName][fnc.end].find();
+Pattern.listeners.range.init = function() {
+  //$.injectCSS({ 
+  //  '.rangeOutside': {
+  //    'color':'#666 !important'
+  //  },
+  //  '.rangeInside': {
+  //    'color':'rgba(102, 153, 221, 1) !important'
+  //  }
+  //})
+  Pattern.listeners.range.initialized = true
+}
 
-    if (!fnc.range.init) {
-      fnc.range.init = true;
-      var ptrnStart = obj.markup.textMarkers[fnc.patternName][0].find(),
-          ptrnEnd = obj.markup.textMarkers[fnc.patternName][obj.markup.textMarkers[fnc.patternName].length - 1].find();
+Pattern.prototype = PatternProto
 
-      //fnc.column.editor.markText( ptrnStart.from, ptrnEnd.to, { className:'rangeOutside' })
-      //Gibber.Environment.codemirror.markText( ptrnStart.from, ptrnEnd.to, { className:'pattern-update-range-outside' })
-      if (!Pattern.listeners.range.initialzied) Pattern.listeners.range.init();
-    }
+return Pattern
 
-    if (fnc.range.mark) fnc.range.mark.clear();
-    //fnc.range.mark = fnc.column.editor.markText( rangeStart.from, rangeEnd.to, { className:'rangeInside' })
-    // TODO: Dont use GE.codemirror... how else do I get this? stored in pattern is created?
-    fnc.range.mark = Gibber.Environment.codemirror.markText(rangeStart.from, rangeEnd.to, { className: 'pattern-update-range-inside' });
-  };
+}
 
-  Pattern.listeners.range.init = function () {
-    //$.injectCSS({ 
-    //  '.rangeOutside': {
-    //    'color':'#666 !important'
-    //  },
-    //  '.rangeInside': {
-    //    'color':'rgba(102, 153, 221, 1) !important'
-    //  }
-    //})
-    Pattern.listeners.range.initialized = true;
-  };
-
-  Pattern.prototype = PatternProto;
-
-  return Pattern;
-};
 },{}],88:[function(require,module,exports){
-"use strict";
-
 /*
  * https://github.com/antimatter15/heapqueue.js/blob/master/heapqueue.js
  *
@@ -7464,57 +7254,51 @@ module.exports = function (Gibber) {
  * heapq.pop(); // ==> 2
  * heapq.pop(); // ==> 3
  */
-var HeapQueue = function HeapQueue(cmp) {
-  this.cmp = cmp || function (a, b) {
-    return a - b;
-  };
+let HeapQueue = function(cmp){
+  this.cmp = (cmp || function(a, b){ return a - b; });
   this.length = 0;
   this.data = [];
-};
-HeapQueue.prototype.peek = function () {
+}
+HeapQueue.prototype.peek = function(){
   return this.data[0];
 };
-HeapQueue.prototype.push = function (value) {
+HeapQueue.prototype.push = function(value){
   this.data.push(value);
 
   var pos = this.data.length - 1,
-      parent,
-      x;
+  parent, x;
 
-  while (pos > 0) {
-    parent = pos - 1 >>> 1;
-    if (this.cmp(this.data[pos], this.data[parent]) < 0) {
+  while(pos > 0){
+    parent = (pos - 1) >>> 1;
+    if(this.cmp(this.data[pos], this.data[parent]) < 0){
       x = this.data[parent];
       this.data[parent] = this.data[pos];
       this.data[pos] = x;
       pos = parent;
-    } else break;
+    }else break;
   }
   return this.length++;
 };
-HeapQueue.prototype.pop = function () {
+HeapQueue.prototype.pop = function(){
   var last_val = this.data.pop(),
-      ret = this.data[0];
-  if (this.data.length > 0) {
+  ret = this.data[0];
+  if(this.data.length > 0){
     this.data[0] = last_val;
     var pos = 0,
-        last = this.data.length - 1,
-        left,
-        right,
-        minIndex,
-        x;
-    while (1) {
+    last = this.data.length - 1,
+    left, right, minIndex, x;
+    while(1){
       left = (pos << 1) + 1;
       right = left + 1;
       minIndex = pos;
-      if (left <= last && this.cmp(this.data[left], this.data[minIndex]) < 0) minIndex = left;
-      if (right <= last && this.cmp(this.data[right], this.data[minIndex]) < 0) minIndex = right;
-      if (minIndex !== pos) {
+      if(left <= last && this.cmp(this.data[left], this.data[minIndex]) < 0) minIndex = left;
+      if(right <= last && this.cmp(this.data[right], this.data[minIndex]) < 0) minIndex = right;
+      if(minIndex !== pos){
         x = this.data[minIndex];
         this.data[minIndex] = this.data[pos];
         this.data[pos] = x;
         pos = minIndex;
-      } else break;
+      }else break;
     }
   } else {
     ret = last_val;
@@ -7523,10 +7307,9 @@ HeapQueue.prototype.pop = function () {
   return ret;
 };
 
-module.exports = HeapQueue;
-},{}],89:[function(require,module,exports){
-'use strict';
+module.exports = HeapQueue
 
+},{}],89:[function(require,module,exports){
 /*
 Score is a Seq(ish) object, with pause, start / stop, rewind, fast-forward.
 It's internal phase is 
@@ -7544,222 +7327,221 @@ a Function              callback. register to receive and advance. must use pub/
 Score.wait             pause until next() method is called
 */
 
-module.exports = function (Gibber) {
+module.exports = function( Gibber ) {
 
-  var Score = {
-    wait: -987654321,
+let Score = {
+  wait: -987654321,
 
-    create: function create(data) {
-      var track = arguments.length <= 1 || arguments[1] === undefined ? Gibber.currentTrack : arguments[1];
+  create( data, track = Gibber.currentTrack ) {
+    let score = Object.create( this )
+    
+    Object.assign( score, {
+      track,
+      timeline:   [],
+      schedule:   [],
+      shouldLoop: false,
+      rate:       1,
+      loopPause:  0,
+      phase:      0,
+      index:      0,
+      isPaused:   true,
+    })
 
-      var score = Object.create(this);
+    for( let i = 0; i < data.length; i+=2 ) {
+      score.schedule.push( data[ i ] )
+      score.timeline.push( data[ i+1 ] )    
+    }
+    
+    let loopPauseFnc = () => {
+          score.nextTime = score.phase = 0
+          score.index = -1
+          score.timeline.pop()
+        }
 
-      Object.assign(score, {
-        track: track,
-        timeline: [],
-        schedule: [],
-        shouldLoop: false,
-        rate: 1,
-        loopPause: 0,
-        phase: 0,
-        index: 0,
-        isPaused: true
-      });
+    score.oncomplete.listeners = []
+    score.oncomplete.owner = this
+  
+    score.nextTime = score.schedule[ 0 ]
+    
+    score.start()
 
-      for (var i = 0; i < data.length; i += 2) {
-        score.schedule.push(data[i]);
-        score.timeline.push(data[i + 1]);
-      }
+    return score
+  },
 
-      var loopPauseFnc = function loopPauseFnc() {
-        score.nextTime = score.phase = 0;
-        score.index = -1;
-        score.timeline.pop();
-      };
+  start() { 
+    if( !this.isPaused ) return
+    this.isPaused = false
+     
+    Gibber.Scheduler.addMessage( this, 0 )   
+  
+    return this
+  },
 
-      score.oncomplete.listeners = [];
-      score.oncomplete.owner = this;
+  stop() { 
+    this.isPaused = true  
+    return this
+  },
+  
+  loop( loopPause = 0 ) {
+    this.loopPause = loopPause
+    this.shouldLoop = !this.shouldLoop
+    
+    return this
+  },
+  
+  pause() {
+    this.isPaused = true
+    
+    return this
+  },
+  
+  next() {
+    this.isPaused = false
+    
+    return this
+  },
+  
+  combine( ...args ) {
+    let score = [ 0, args[ 0 ] ]
+  
+    for( let i = 1; i < args.length; i++ ) {
+      let timeIndex = i * 2,
+          valueIndex = timeIndex +  1,
+          previousValueIndex = timeIndex - 1
 
-      score.nextTime = score.schedule[0];
+      score[ timeIndex  ] = score[ previousValueIndex ].oncomplete
+      score[ valueIndex ] = args[ i ]
+    }
+  
+    return Score.create( score )
+  },
 
-      score.start();
-
-      return score;
-    },
-    start: function start() {
-      if (!this.isPaused) return;
-      this.isPaused = false;
-
-      Gibber.Scheduler.addMessage(this, 0);
-
-      return this;
-    },
-    stop: function stop() {
-      this.isPaused = true;
-      return this;
-    },
-    loop: function loop() {
-      var loopPause = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-
-      this.loopPause = loopPause;
-      this.shouldLoop = !this.shouldLoop;
-
-      return this;
-    },
-    pause: function pause() {
-      this.isPaused = true;
-
-      return this;
-    },
-    next: function next() {
-      this.isPaused = false;
-
-      return this;
-    },
-    combine: function combine() {
-      for (var _len = arguments.length, args = Array(_len), _key = 0; _key < _len; _key++) {
-        args[_key] = arguments[_key];
-      }
-
-      var score = [0, args[0]];
-
-      for (var i = 1; i < args.length; i++) {
-        var timeIndex = i * 2,
-            valueIndex = timeIndex + 1,
-            previousValueIndex = timeIndex - 1;
-
-        score[timeIndex] = score[previousValueIndex].oncomplete;
-        score[valueIndex] = args[i];
-      }
-
-      return Score.create(score);
-    },
-    tick: function tick(scheduler, beat, beatOffset) {
-      if (!this.isPaused) {
-        if (this.phase >= this.nextTime && this.index < this.timeline.length) {
-
-          var fnc = this.timeline[this.index],
-              shouldExecute = true;
-
-          this.index++;
-
-          if (this.index <= this.timeline.length - 1) {
-            var time = this.schedule[this.index];
-
-            if (typeof time === 'number' && time !== Score.wait) {
-              this.nextTime = time;
-            } else {
-              if (time === Score.wait) {
-                this.isPaused = true;
-              } else if (time.owner instanceof Score) {
-                this.isPaused = true;
-                time.owner.oncomplete.listeners.push(self);
-                // shouldExecute = false // doesn't do what I think it should do... 
-              }
-            }
+  tick( scheduler, beat, beatOffset ) {
+    if( !this.isPaused ) {
+      if( this.phase >= this.nextTime && this.index < this.timeline.length ) {
+        
+        let fnc = this.timeline[ this.index ],
+            shouldExecute = true
+        
+        this.index++
+        
+        if( this.index <= this.timeline.length - 1 ) {
+          let time = this.schedule[ this.index ]
+          
+          if( typeof time === 'number' && time !== Score.wait ) {
+            this.nextTime =  time
           } else {
-            if (this.shouldLoop) {
-              if (this.timeline[this.timeline.length - 1] !== loopPauseFnc) {
-                this.timeline.push(loopPauseFnc);
-              }
-              this.nextTime = this.loopPause;
-            } else {
-              this.isPaused = true;
+            if( time === Score.wait ) {
+              this.isPaused = true
+            }else if( time.owner instanceof Score ) {
+              this.isPaused = true
+              time.owner.oncomplete.listeners.push( self )
+              // shouldExecute = false // doesn't do what I think it should do... 
             }
-            this.oncomplete();
           }
-
-          if (shouldExecute && fnc) {
-            if (Score.isPrototypeOf(fnc)) {
-              if (!fnc.codeblock) {
-                // TODO: what do I replace codeblock with? isRunning?
-                fnc.start();
-              } else {
-                // TODO: what is this for?
-                fnc.rewind().next();
-                //fnc.rewind().next()
-                //fnc()
-              }
-            } else {
-              fnc.call(this.track);
+        }else{
+          if( this.shouldLoop ) {
+            if( this.timeline[ this.timeline.length - 1 ] !== loopPauseFnc ) {
+              this.timeline.push( loopPauseFnc )
             }
-
-            var marker = Gibber.currentTrack.markup.textMarkers['score'][this.index - 1],
-                pos = marker.find(),
-                funcBody = fnc.toString(),
-                isMultiLine = funcBody.includes('\n'),
-                code = void 0,
-                line = void 0;
-
-            pos.start = Object.assign({}, pos.from);
-            pos.end = Object.assign({}, pos.to);
-
-            if (isMultiLine) {
-              code = fnc.toString().split('\n').slice(1, -1).join('\n');
-              pos.start.line += 1;
-              pos.end.line += 1;
-            } else {
-              if (funcBody.endsWith('}')) {
-                line = marker.lines[0].text;
-
-                var bracketIdx = line.indexOf('{') + 1,
-                    commaIdx = line.indexOf(','),
-                    commaAmount = line.endsWith(',') ? 1 : 0;
-
-                code = line.substr(bracketIdx, line.length - bracketIdx - 1 - commaAmount);
-
-                pos.horizontalOffset = bracketIdx; //pos.start.ch
-              } else {
-                // TODO: why doesn't this work? acorn seems unable to parse arrow functions?
-                line = marker.lines[0].text;
-
-                var arrowIdx = line.indexOf('>') + 1,
-                    _commaAmount = line.endsWith(',') ? 1 : 0;
-
-                code = line.substr(arrowIdx, line.length - arrowIdx - _commaAmount);
-
-                pos.horizontalOffset = arrowIdx;
-              }
-            }
-            //funcBody = fnc.toString(),
-            //code = funcBody.match(/(?:function\s*\(\)*[\s]*[\{\n])([\s\S]*)\}/)[1]
-            //code = funcBody.match(/(?:(?:\(\))*(?:_)*(?:=>)\s*(?:\{)*)([\"\'\.\{\}\(\)\w\d\s\n]+)(?:\})/i)[1]
-
-            // TODO: should not be Gibber.currentTrack ?
-            Gibber.Environment.codeMarkup.process(code, pos, Gibber.Environment.codemirror, Gibber.currentTrack);
-
-            if (typeof this.onadvance === 'function') this.onadvance(this.index - 1);
+            this.nextTime = this.loopPause
+          }else{
+            this.isPaused = true
           }
+          this.oncomplete()
         }
 
-        Gibber.Scheduler.addMessage(this, this.nextTime);
-        this.phase += this.rate; //rate TODO: what if a beat isn't a quarter note?
+        if( shouldExecute && fnc ) {
+          if( Score.isPrototypeOf( fnc )  ) {
+            if( !fnc.codeblock ) { // TODO: what do I replace codeblock with? isRunning?
+              fnc.start()
+            }else{
+              // TODO: what is this for?
+              fnc.rewind().next()
+              //fnc.rewind().next()
+              //fnc()
+            }
+          }else{
+            fnc.call( this.track )
+          }
+          
+          let marker      = Gibber.currentTrack.markup.textMarkers[ 'score' ][ this.index - 1 ],
+              pos         = marker.find(),
+              funcBody    = fnc.toString(),
+              isMultiLine = funcBody.includes('\n'),
+              code, line 
+
+          pos.start = Object.assign( {}, pos.from )
+          pos.end   = Object.assign( {}, pos.to   )
+
+          if( isMultiLine ) {
+            code  = fnc.toString().split('\n').slice(1,-1).join('\n')
+            pos.start.line += 1
+            pos.end.line += 1
+          } else {
+            if( funcBody.endsWith( '}' ) ) {
+              line  = marker.lines[ 0 ].text
+
+              let bracketIdx = line.indexOf( '{' ) + 1,
+                  commaIdx   = line.indexOf( ',' ),
+                  commaAmount = line.endsWith( ',' ) ? 1 : 0
+  
+              code = line.substr( bracketIdx, line.length - bracketIdx - 1 - commaAmount )
+
+              pos.horizontalOffset = bracketIdx//pos.start.ch
+
+            }else{
+              // TODO: why doesn't this work? acorn seems unable to parse arrow functions?
+              line = marker.lines[ 0 ].text
+              
+              let arrowIdx = line.indexOf( '>' ) + 1,
+                  commaAmount = line.endsWith( ',' ) ? 1 : 0
+
+              code = line.substr( arrowIdx, line.length - arrowIdx - commaAmount )
+
+              pos.horizontalOffset = arrowIdx
+
+            }
+          }
+          //funcBody = fnc.toString(),
+          //code = funcBody.match(/(?:function\s*\(\)*[\s]*[\{\n])([\s\S]*)\}/)[1]
+          //code = funcBody.match(/(?:(?:\(\))*(?:_)*(?:=>)\s*(?:\{)*)([\"\'\.\{\}\(\)\w\d\s\n]+)(?:\})/i)[1]
+
+          // TODO: should not be Gibber.currentTrack ?
+          Gibber.Environment.codeMarkup.process( code, pos, Gibber.Environment.codemirror, Gibber.currentTrack )
+
+          if( typeof this.onadvance === 'function' ) this.onadvance( this.index - 1 )
+        }
       }
-      return 0;
-    },
 
+      Gibber.Scheduler.addMessage( this, this.nextTime )
+      this.phase += this.rate //rate TODO: what if a beat isn't a quarter note?
+    }
+    return 0
+  },
 
-    rewind: function rewind() {
-      this.phase = this.index = 0;
-      this.nextTime = this.schedule[0];
-      return this;
-    },
+  rewind : function() { 
+    this.phase = this.index = 0 
+    this.nextTime = this.schedule[ 0 ]
+    return this
+  },
 
-    oncomplete: function oncomplete() {
-      // console.log("ON COMPLETE", this.oncomplete.listeners )
-      var listeners = this.oncomplete.listeners;
-      for (var i = listeners.length - 1; i >= 0; i--) {
-        var listener = listeners[i];
-        if (listener instanceof Score) {
-          listener.next();
-        }
+  oncomplete: function() {
+    // console.log("ON COMPLETE", this.oncomplete.listeners )
+    let listeners = this.oncomplete.listeners
+    for( let i = listeners.length - 1; i >= 0; i-- ) {
+      let listener = listeners[i]
+      if( listener instanceof Score ) {
+        listener.next()
       }
     }
+  }
 
-  };
+}
 
-  return Score.create.bind(Score);
-};
+return Score.create.bind( Score )
+
+}
 
 /*
 a = Score([ 
@@ -7916,328 +7698,304 @@ song = Score([
 song.start()
 
 */
+
+
 },{}],90:[function(require,module,exports){
 'use strict';
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+const Big = require( 'big.js' )
 
-var Big = require('big.js');
+let seqclosure = function( Gibber ) {
+  
+  let Theory = Gibber.Theory
 
-var seqclosure = function seqclosure(Gibber) {
-
-  var Theory = Gibber.Theory;
-
-  var proto = {
+  let proto = {
     DO_NOT_OUTPUT: -987654321,
     _seqs: [],
 
-    create: function create(values, timings, key) {
-      var object = arguments.length <= 3 || arguments[3] === undefined ? null : arguments[3];
-      var priority = arguments.length <= 4 || arguments[4] === undefined ? 0 : arguments[4];
+    create( values, timings, key, object = null, priority=0 ) {
+      let seq = Object.create( this )
 
-      var seq = Object.create(this);
-
-      Object.assign(seq, {
-        phase: 0,
+      Object.assign( seq, {
+        phase:   0,
         running: false,
         offset: 0,
-        values: values,
-        timings: timings,
-        object: object,
-        key: key,
-        priority: priority,
-        trackID: -1
-      });
+        values,
+        timings,
+        object,
+        key,
+        priority,
+        trackID:-1
+      })
+      
+      seq.init()
 
-      seq.init();
-
-      proto._seqs.push(seq);
-
-      return seq;
+      proto._seqs.push( seq )
+      
+      return seq
     },
-    init: function init() {
-      var valuesPattern = void 0,
-          timingsPattern = void 0;
+    
+    init() {
+      let valuesPattern, timingsPattern
 
-      if (!Gibber.Pattern.prototype.isPrototypeOf(this.values)) {
-        if (!Array.isArray(this.values)) this.values = [this.values];
-        valuesPattern = Gibber.Pattern.apply(null, this.values);
+      if( ! Gibber.Pattern.prototype.isPrototypeOf( this.values ) ) {
+        if( !Array.isArray( this.values ) ) this.values  = [ this.values ] 
+        valuesPattern = Gibber.Pattern.apply( null, this.values ) 
 
-        if (this.values.randomFlag) {
-          valuesPattern.filters.push(function () {
-            var idx = Gibber.Utility.rndi(0, valuesPattern.values.length - 1);
-            return [valuesPattern.values[idx], 1, idx];
-          });
-          for (var i = 0; i < this.values.randomArgs.length; i += 2) {
-            valuesPattern.repeat(this.values.randomArgs[i], this.values.randomArgs[i + 1]);
+        if( this.values.randomFlag ) {
+          valuesPattern.filters.push( () => {
+            var idx = Gibber.Utility.rndi( 0, valuesPattern.values.length - 1 )
+            return [ valuesPattern.values[ idx ], 1, idx ] 
+          })
+          for( var i = 0; i < this.values.randomArgs.length; i+=2 ) {
+            valuesPattern.repeat( this.values.randomArgs[ i ], this.values.randomArgs[ i + 1 ] )
           }
         }
 
-        this.values = valuesPattern;
+        this.values = valuesPattern
       }
 
-      if (this.key === 'note') {
-        this.values.filters.push(function (args) {
-          args[0] = Theory.Note.convertToMIDI(args[0]);
-          return args;
-        });
-      } else if (this.key === 'chord') {
+      if( this.key === 'note' ) {
+        this.values.filters.push( args => {
+          args[ 0 ] = Theory.Note.convertToMIDI( args[ 0 ] )
+          return args
+        })
+      } else if( this.key === 'chord' ) {
 
-        this.values.filters.push(function (args) {
-          var chord = args[0],
-              out = void 0;
+        this.values.filters.push( args => {
+          let chord = args[ 0 ], out
 
-          if (typeof chord === 'string') {
-            var chordObj = Gibber.Theory.Chord.create(chord);
+          if( typeof chord === 'string' ) {
+            let chordObj = Gibber.Theory.Chord.create( chord )
 
-            out = chordObj.notes;
-          } else {
-            if (typeof chord === 'function') chord = chord();
-            out = chord.map(Gibber.Theory.Note.convertToMIDI);
+            out = chordObj.notes 
+          }else{
+            if( typeof chord === 'function' ) chord = chord()
+            out = chord.map( Gibber.Theory.Note.convertToMIDI )
           }
 
-          args[0] = out;
-
-          return args;
-        });
+          args[0] = out
+          
+          return args
+        })
       }
 
-      if (!Gibber.Pattern.prototype.isPrototypeOf(this.timings)) {
-        if (this.timings !== undefined && !Array.isArray(this.timings)) this.timings = [this.timings];
-        timingsPattern = Gibber.Pattern.apply(null, this.timings);
-        timingsPattern.values.initial = this.timings.initial;
+      if( ! Gibber.Pattern.prototype.isPrototypeOf( this.timings ) ) {
+        if( this.timings !== undefined && !Array.isArray( this.timings ) ) this.timings = [ this.timings ]
+        timingsPattern = Gibber.Pattern.apply( null, this.timings )
+        timingsPattern.values.initial = this.timings.initial
 
-        if (this.timings !== undefined) {
-          if (this.timings.randomFlag) {
-            timingsPattern.filters.push(function () {
-              var idx = Gibber.Utility.rndi(0, timingsPattern.values.length - 1);
-              return [timingsPattern.values[idx], 1, idx];
-            });
-            for (var i = 0; i < this.timings.randomArgs.length; i += 2) {
-              timingsPattern.repeat(this.timings.randomArgs[i], this.timings.randomArgs[i + 1]);
+        if( this.timings !== undefined ) {
+          if( this.timings.randomFlag ) {
+            timingsPattern.filters.push( ()=> { 
+              var idx = Gibber.Utility.rndi( 0, timingsPattern.values.length - 1)
+              return [ timingsPattern.values[ idx ], 1, idx ] 
+            })
+            for( var i = 0; i < this.timings.randomArgs.length; i+=2 ) {
+              timingsPattern.repeat( this.timings.randomArgs[ i ], this.timings.randomArgs[ i + 1 ] )
             }
           }
         }
 
-        this.timings = timingsPattern;
-      }
+        this.timings = timingsPattern
+      } 
 
-      this.values.nextTime = this.timings.nextTime = 0;
+      this.values.nextTime = this.timings.nextTime = 0
     },
-
 
     externalMessages: {
-      note: function note(number, beat, trackID) {
-        // let msgstring = "add " + beat + " " + t + " " + n + " " + v + " " + d
-
-        return trackID + ' add ' + beat + ' note ' + number;
-      },
-      midinote: function midinote(number, beat, trackID) {
-        return trackID + ' add ' + beat + ' note ' + number;
-      },
-      duration: function duration(value, beat, trackID) {
-        return trackID + ' add ' + beat + ' duration ' + value;
-      },
-      velocity: function velocity(value, beat, trackID) {
-        return trackID + ' add ' + beat + ' velocity ' + value;
-      },
-      chord: function chord(_chord, beat, trackID) {
-        //console.log( chord )
-        var msg = [];
-
-        for (var i = 0; i < _chord.length; i++) {
-          msg.push(trackID + ' add ' + beat + ' note ' + _chord[i]);
-        }
-
-        return msg;
-      },
-      cc: function cc(number, value, beat) {
-        return trackID + ' add ' + beat + ' cc ' + number + ' ' + value;
-      }
     },
 
-    start: function start() {
-      if (this.running) return;
-      this.running = true;
+    start() {
+      if( this.running ) return
+      this.running = true
       //console.log( 'starting with offset', this.offset ) 
-      Gibber.Scheduler.addMessage(this, Big(this.offset));
+      Gibber.Scheduler.addMessage( this, Big( this.offset ) )     
+      
+      return this
+    },
 
-      return this;
+    stop() {
+      this.running = false
     },
-    stop: function stop() {
-      this.running = false;
-    },
-    clear: function clear() {
-      this.stop();
-      if (typeof this.timings.clear === 'function') this.timings.clear();
-      if (typeof this.values.clear === 'function') this.values.clear();
-    },
-    delay: function delay(v) {
-      this.offset = v;
-      return this;
-    },
-    tick: function tick(scheduler, beat, beatOffset) {
-      if (!this.running) return;
-      var _beatOffset = parseFloat(beatOffset.toFixed(6));
 
-      this.timings.nextTime = _beatOffset;
+    clear() {
+      this.stop()
+      if( typeof this.timings.clear === 'function' ) this.timings.clear()
+      if( typeof this.values.clear  === 'function' ) this.values.clear()
+    },
+    
+    delay( v ) { 
+      this.offset = v
+      return this
+    },
+
+    tick( scheduler, beat, beatOffset ) {
+      if( !this.running ) return
+      let _beatOffset = parseFloat( beatOffset.toFixed( 6 ) )
+
+      this.timings.nextTime = _beatOffset
       // pick a new timing and schedule tick
-      var nextTime = this.timings(),
-          shouldExecute = void 0;
+      let nextTime = this.timings(),
+          shouldExecute
+      
+      if( typeof nextTime === 'function' )  nextTime = nextTime()
 
-      if (typeof nextTime === 'function') nextTime = nextTime();
-
-      if ((typeof nextTime === 'undefined' ? 'undefined' : _typeof(nextTime)) === 'object') {
-        shouldExecute = nextTime.shouldExecute;
-        nextTime = nextTime.time;
-      } else {
-        shouldExecute = true;
+      if( typeof nextTime === 'object' ) {
+        shouldExecute = nextTime.shouldExecute
+        nextTime = nextTime.time
+      }else{
+        shouldExecute = true
       }
 
-      var bigTime = Big(nextTime);
+      let bigTime = Big( nextTime )
 
-      scheduler.addMessage(this, bigTime, true, this.priority);
+      scheduler.addMessage( this, bigTime, true, this.priority )
 
       //console.log( 'beat:', beat, 'beatOffset:', beatOffset.toFixed() )
 
-      if (shouldExecute) {
-        this.values.nextTime = _beatOffset;
-        this.values.beat = beat;
-        this.values.beatOffset = _beatOffset;
-        this.values.scheduler = scheduler;
+      if( shouldExecute ) {
+        this.values.nextTime = _beatOffset
+        this.values.beat = beat
+        this.values.beatOffset = _beatOffset
+        this.values.scheduler = scheduler
 
-        var value = this.values();
-        if (typeof value === 'function') value = value();
-        if (value !== null) {
+        let value = this.values()
+        if( typeof value === 'function' ) value = value()
+        if( value !== null ) {
           // delay messages  
-          if (this.externalMessages[this.key] !== undefined) {
+          if( this.externalMessages[ this.key ] === undefined ) {
 
             //let msg = this.externalMessages[ this.key ]( value, beat + _beatOffset, this.trackID )
-            this.object[this.key](value, Gibber.Utility.beatsToMs(_beatOffset));
+            
             //scheduler.msgs.push( msg, this.priority )
-
-            //Gibber.Communication.send( msg )
-          } else {
-            // schedule internal method / function call immediately
-            if (this.object && this.key) {
-              if (typeof this.object[this.key] === 'function') {
-                this.object[this.key](value);
-              } else {
-                this.object[this.key] = value;
+            if( this.object && this.key ) {
+              if( typeof this.object[ this.key ] === 'function' ) {
+                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+              }else{
+                this.object[ this.key ] = value
               }
             }
+            //Gibber.Communication.send( msg )
+
+          } else { // schedule internal method / function call immediately
+
+            this.externalMessages[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+
           }
         }
-      }
+      } 
 
       //console.log( 'beat', beat )
       //this.timings.nextTime = _beatOffset // for scheduling pattern updates
-    }
-  };
+    },
+    
+  }
 
-  proto.create = proto.create.bind(proto);
-  proto.create.DO_NOT_OUTPUT = proto.DO_NOT_OUTPUT;
-  proto.create._seqs = proto._seqs;
-  proto.create.proto = proto;
+  proto.create = proto.create.bind( proto )
+  proto.create.DO_NOT_OUTPUT = proto.DO_NOT_OUTPUT
+  proto.create._seqs = proto._seqs
+  proto.create.proto = proto
 
-  return proto.create;
-};
+  return proto.create
 
-module.exports = seqclosure;
+}
+
+module.exports = seqclosure
+
 },{"big.js":98}],91:[function(require,module,exports){
-'use strict';
+module.exports = function( Gibber ) {
+  
+let Steps = {
+  type:'Steps',
+  create( _steps, track = Gibber.currentTrack ) {
+    let stepseq = Object.create( Steps )
+    
+    stepseq.seqs = {}
 
-module.exports = function (Gibber) {
+    //  create( values, timings, key, object = null, priority=0 )
+    for ( let _key in _steps ) {
+      let values = _steps[ _key ].split(''),
+          key = parseInt( _key )
 
-  var Steps = {
-    type: 'Steps',
-    create: function create(_steps) {
-      var track = arguments.length <= 1 || arguments[1] === undefined ? Gibber.currentTrack : arguments[1];
+      let seq = Gibber.Seq( values, 1 / values.length, 'midinote', track, 0 )
+      seq.trackID = track.id
 
-      var stepseq = Object.create(Steps);
+      seq.values.filters.push( function( args ) {
+        let sym = args[ 0 ],
+            velocity = ( parseInt( sym, 16 ) * 8 ) - 1
 
-      stepseq.seqs = {};
+        if( isNaN( velocity ) ) {
+          velocity = 0
+        }
 
-      //  create( values, timings, key, object = null, priority=0 )
+        // TODO: is there a better way to get access to beat, beatOffset and scheduler?
+        if( velocity !== 0 ) {
+          let msg = seq.externalMessages[ 'velocity' ]( velocity, seq.values.beat + seq.values.beatOffset, seq.trackID )
+          seq.values.scheduler.msgs.push( msg ) 
+        }
 
-      var _loop = function _loop(_key) {
-        var values = _steps[_key].split(''),
-            key = parseInt(_key);
+        args[ 0 ] = sym === '.' ? Gibber.Seq.DO_NOT_OUTPUT : key
 
-        var seq = Gibber.Seq(values, 1 / values.length, 'midinote', track, 0);
-        seq.trackID = track.id;
+        return args
+      })
 
-        seq.values.filters.push(function (args) {
-          var sym = args[0],
-              velocity = parseInt(sym, 16) * 8 - 1;
-
-          if (isNaN(velocity)) {
-            velocity = 0;
-          }
-
-          // TODO: is there a better way to get access to beat, beatOffset and scheduler?
-          if (velocity !== 0) {
-            var msg = seq.externalMessages['velocity'](velocity, seq.values.beat + seq.values.beatOffset, seq.trackID);
-            seq.values.scheduler.msgs.push(msg);
-          }
-
-          args[0] = sym === '.' ? Gibber.Seq.DO_NOT_OUTPUT : key;
-
-          return args;
-        });
-
-        stepseq.seqs[_key] = seq;
-        stepseq[_key] = seq.values;
-      };
-
-      for (var _key in _steps) {
-        _loop(_key);
-      }
-
-      stepseq.start();
-      stepseq.addPatternMethods();
-
-      return stepseq;
-    },
-    addPatternMethods: function addPatternMethods() {
-      var _this = this;
-
-      groupMethodNames.map(function (name) {
-        _this[name] = function () {
-          for (var _len = arguments.length, args = Array(_len), _key2 = 0; _key2 < _len; _key2++) {
-            args[_key2] = arguments[_key2];
-          }
-
-          for (var _key3 in this.seqs) {
-            this.seqs[_key3].values[name].apply(this, args);
-          }
-        };
-
-        Gibber.addSequencingToMethod(_this, name, 1);
-      });
-    },
-    start: function start() {
-      for (var _key4 in this.seqs) {
-        this.seqs[_key4].start();
-      }
-    },
-    stop: function stop() {
-      for (var _key5 in this.seqs) {
-        this.seqs[_key5].stop();
-      }
-    },
-    clear: function clear() {
-      this.stop();
+      stepseq.seqs[ _key ] = seq
+      stepseq[ _key ] = seq.values
     }
-  };
 
-  var groupMethodNames = ['rotate', 'reverse', 'transpose', 'range', 'shuffle', 'scale', 'repeat', 'switch', 'store', 'reset', 'flip', 'invert', 'set'];
+    stepseq.start()
+    stepseq.addPatternMethods()
 
-  return Steps.create;
-};
+    return stepseq
+  },
+  
+  addPatternMethods() {
+    groupMethodNames.map( (name) => {
+      this[ name ] = function( ...args ) {
+        for( let key in this.seqs ) {
+          this.seqs[ key ].values[ name ].apply( this, args )
+        }
+      }
+    
+      Gibber.addSequencingToMethod( this, name, 1 )
+    })
+  },
+
+  start() {
+    for( let key in this.seqs ) { 
+      this.seqs[ key ].start()
+    }
+  },
+
+  stop() {
+    for( let key in this.seqs ) { 
+      this.seqs[ key ].stop()
+    }
+  },
+
+  clear() { this.stop() },
+
+  /*
+   *rotate( amt ) {
+   *  for( let key in this.seqs ) { 
+   *    this.seqs[ key ].values.rotate( amt )
+   *  }
+   *},
+   */
+}
+
+const groupMethodNames = [ 
+  'rotate', 'reverse', 'transpose', 'range',
+  'shuffle', 'scale', 'repeat', 'switch', 'store', 
+  'reset','flip', 'invert', 'set'
+]
+
+return Steps.create
+
+}
+
 },{}],92:[function(require,module,exports){
-"use strict";
-
 /**
  * MicroLib-Utils is the utility library for other MicroLib libraries. It provides
  * helper methods for common tasks such as adding, checking and removing classes.
@@ -8255,7 +8013,7 @@ module.exports = function (Gibber) {
 function forEach(array, callback) {
     "use strict";
 
-    for (var i = 0; i < array.length; i++) {
+    for(var i = 0; i < array.length; i++) {
         callback(i, array[i]);
     }
 }
@@ -8268,7 +8026,7 @@ function forEach(array, callback) {
 function makeUID() {
     "use strict";
 
-    return ('0000' + (Math.random() * Math.pow(36, 4) << 0).toString(36)).slice(-4);
+    return ('0000' + (Math.random()*Math.pow(36,4) << 0).toString(36)).slice(-4);
 }
 
 /**
@@ -8295,7 +8053,7 @@ function addClass(element, className) {
     "use strict";
 
     var classes = element.className.split(' ');
-    if (!hasClass(element, className)) {
+    if(!hasClass(element, className)) {
         classes.push(className);
     }
     element.className = classes.join(' ');
@@ -8311,7 +8069,7 @@ function removeClass(element, className) {
     "use strict";
 
     var classes = element.className.split(' ');
-    if (hasClass(element, className)) {
+    if(hasClass(element, className)) {
         classes.splice(classes.indexOf(className), 1);
     }
     element.className = classes.join(' ');
@@ -8332,7 +8090,7 @@ function findFromElement(element, searchItem) {
     var results = [];
 
     forEach(children, function (index, item) {
-        if (hasClass(item, searchItem) || item.id === searchItem) {
+        if(hasClass(item, searchItem) || item.id === searchItem) {
             results.push(item);
         }
     });
@@ -8341,12 +8099,12 @@ function findFromElement(element, searchItem) {
 }
 
 var MicroTabs = function MicroTabs(element) {
-    if (!element || typeof element !== 'string' && element === Object(element)) {
+    if(!element || (typeof element !== 'string' && element === Object(element))) {
         throw new TypeError('Element is expected to be of type string or object.');
     }
 
-    if (typeof element === 'string') {
-        if (element.indexOf(0) === '#') {
+    if(typeof element === 'string') {
+        if(element.indexOf(0) === '#') {
             this._element = document.querySelector(element);
         } else {
             this._element = document.querySelectorAll(element);
@@ -8359,7 +8117,7 @@ var MicroTabs = function MicroTabs(element) {
 
     this._generateTabNavigation();
 
-    this.onChange = function (newContent, newTab, event) {};
+    this.onChange = function(newContent, newTab, event){};
 };
 
 /**
@@ -8383,7 +8141,7 @@ MicroTabs.prototype._findTabs = function _findTabs() {
  * @method generateTabNavigation
  */
 MicroTabs.prototype._generateTabNavigation = function _generateTabNavigation() {
-    var this$1 = this;
+        var this$1 = this;
 
     forEach(this._tabs, function (index, item) {
         var navContainer = document.createElement('div');
@@ -8392,7 +8150,7 @@ MicroTabs.prototype._generateTabNavigation = function _generateTabNavigation() {
         var parent = '';
 
         forEach(item, function (child_index, child) {
-            if (!parent || parent === '') {
+            if(!parent || parent === '') {
                 parent = child.parentNode;
             }
 
@@ -8403,7 +8161,7 @@ MicroTabs.prototype._generateTabNavigation = function _generateTabNavigation() {
 
             navItem.addEventListener('click', this$1._processClick.bind(this$1));
 
-            if (child_index === 0) {
+            if(child_index === 0) {
                 addClass(navItem, 'microlib_active');
             }
 
@@ -8442,619 +8200,499 @@ MicroTabs.prototype._processClick = function _processClick(e) {
 
 window.ML = window.ML || {};
 window.ML.Tabs = MicroTabs;
+
 },{}],93:[function(require,module,exports){
-'use strict';
+let Gibber = null
 
-var _extensions;
-
-var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-
-var Gibber = null;
-
-var Note = {
-  names: ['c', 'db', 'd', 'eb', 'e', 'f', 'gb', 'g', 'ab', 'a', 'bb', 'b'],
+let Note = {
+  names: [ 'c','db','d','eb','e','f','gb','g','ab','a','bb','b' ],
   indices: {
     c: 0,
     'c#': 1, db: 1,
-    d: 2,
-    'd#': 3, eb: 3,
-    e: 4, fb: 4,
-    f: 5,
-    'f#': 6, gb: 6,
-    g: 7,
-    'g#': 8, ab: 8,
-    a: 9,
-    'a#': 10, bb: 10,
-    b: 11, cb: 11
+    d:2,
+    'd#':3, eb:3,
+    e:4, fb:4,
+    f:5,
+    'f#':6, gb:6,
+    g:7,
+    'g#':8, ab:8,
+    a:9,
+    'a#':10, bb:10,
+    b:11, cb:11
   },
 
-  getMIDI: function getMIDI() {
-    return this.value;
-  },
-  getFrequency: function getFrequency() {
-    return Math.pow(2, (this.value - 69) / 12) * 440;
-  },
-  getString: function getString() {
-    var octave = Math.floor(this.value / 12) - 1,
-        index = this.value % 12;
+  getMIDI() { return this.value },
 
-    return Note.names[index] + octave;
+  getFrequency() {
+    return Math.pow( 2, (this.value - 69) / 12 ) * 440  
   },
-  create: function create(value) {
-    var midiValue = Note.convertToMIDI(value),
-        note = Object.create(this);
 
-    note.value = midiValue;
+  getString() {
+    let octave = Math.floor( ( this.value / 12 ) ) - 1,
+        index  = this.value % 12
 
-    return note;
+    return Note.names[ index ] + octave
   },
-  convertToMIDI: function convertToMIDI(value) {
-    var midiValue = void 0;
 
-    if (typeof value === 'string') {
-      midiValue = this.convertStringToMIDI(value);
+  create( value ) {
+    let midiValue = Note.convertToMIDI( value ),
+        note = Object.create( this )
+
+    note.value = midiValue
+
+    return note
+  },
+
+  convertToMIDI( value ) {
+    let midiValue
+
+    if( typeof value === 'string' ) { 
+      midiValue = this.convertStringToMIDI( value )
     } else {
-      midiValue = Scale.master.getMIDINumber(value);
+      midiValue = Scale.master.getMIDINumber( value )
     }
-
-    return midiValue;
+    
+    return midiValue
   },
-  convertStringToMIDI: function convertStringToMIDI(stringValue) {
-    var octave = parseInt(stringValue.substr(-1)),
-        noteName = stringValue.substr(0, stringValue.length === 2 ? 1 : 2),
-        noteNum = Note.indices[noteName];
 
-    return (octave + 1) * 12 + noteNum;
+  convertStringToMIDI( stringValue ) {
+    let octave   = parseInt( stringValue.substr( -1 ) ),
+        noteName = stringValue.substr( 0, stringValue.length === 2 ? 1 : 2 ),
+        noteNum  = Note.indices[ noteName ]
+    
+    return ( octave + 1 ) * 12 + noteNum
   },
-  convertMIDIToString: function convertMIDIToString(midiValue) {},
-  convertMIDIToFrequency: function convertMIDIToFrequency(midiValue) {},
-  convertScaleMemberToMIDI: function convertScaleMemberToMIDI(scaleIndex, scale) {}
-};
 
-var Chord = {
-  create: function create(str) {
-    var chord = Object.create(this);
+  convertMIDIToString( midiValue ) { },
 
-    var _Chord$parseString = Chord.parseString(str);
+  convertMIDIToFrequency( midiValue ) { },
 
-    var _Chord$parseString2 = _slicedToArray(_Chord$parseString, 4);
+  convertScaleMemberToMIDI( scaleIndex, scale ) { }
+}
 
-    var root = _Chord$parseString2[0];
-    var octave = _Chord$parseString2[1];
-    var quality = _Chord$parseString2[2];
-    var extension = _Chord$parseString2[3];
+let Chord = {
+  create( str ) {
+    let chord = Object.create( this )
 
+    let [ root, octave, quality, extension ] = Chord.parseString( str )
 
-    Object.assign(chord, {
-      root: root,
-      octave: octave,
-      quality: quality,
-      extension: extension,
+    Object.assign( chord, {
+      root,
+      octave,
+      quality,
+      extension,
       notes: []
-    });
+    })
 
-    chord.notes[0] = parseInt(Note.convertStringToMIDI(root + octave));
-
-    var _quality = Chord.qualities[chord.quality];
-    for (var i = 0; i < _quality.length; i++) {
-      chord.notes.push(chord.notes[0] + _quality[i]);
+    chord.notes[ 0 ] = parseInt( Note.convertStringToMIDI( root + octave ) )
+    
+    let _quality = Chord.qualities[ chord.quality ]
+    for( let i = 0; i <  _quality.length; i++  ) {
+      chord.notes.push( chord.notes[ 0 ] + _quality[ i ] )
     }
-
-    if (chord.extension) {
+    
+    if( chord.extension ) {
       // split each extension into array
-      chord.extensions = extension.split(/(b?#?\d+)/i);
-
-      for (var _i = 0; _i < chord.extensions.length; _i++) {
-        var _extension = chord.extensions[_i];
-        if (_extension !== '') chord.notes.push(Chord.extensions[_extension](chord.notes));
+      chord.extensions = extension.split(/(b?#?\d+)/i)
+      
+      for( let i = 0; i < chord.extensions.length; i++ ) {
+        let _extension = chord.extensions[ i ]
+        if( _extension !== '' ) 
+          chord.notes.push( Chord.extensions[ _extension ]( chord.notes ) )
       }
     }
 
-    return chord;
+    return chord
   },
-
 
   qualities: {
-    min: [3, 7],
-    maj: [4, 7],
-    dim: [3, 6],
-    aug: [4, 8],
-    sus: [5, 7]
+    min: [ 3, 7 ],
+    maj: [ 4, 7 ],
+    dim: [ 3, 6 ],
+    aug: [ 4, 8 ],
+    sus: [ 5, 7 ]
   },
 
-  extensions: (_extensions = {}, _defineProperty(_extensions, '7', function _(notes) {
-    return notes[2] + 3;
-  }), _defineProperty(_extensions, '#7', function _(notes) {
-    return notes[2] + 4;
-  }), _defineProperty(_extensions, '9', function _(notes) {
-    return notes[2] + 7;
-  }), _defineProperty(_extensions, 'b9', function b9(notes) {
-    return notes[2] + 6;
-  }), _extensions),
+  extensions: {
+    ['7']  ( notes ) { return notes[ 2 ] + 3 },
+    ['#7'] ( notes ) { return notes[ 2 ] + 4 },
+    ['9']  ( notes ) { return notes[ 2 ] + 7 },
+    ['b9'] ( notes ) { return notes[ 2 ] + 6 }
+  },
 
-  parseString: function parseString(str) {
-    var _str$match = str.match(/([A-Za-z]b?#?)(\d)([a-z]{3})([b?#?\d]*)/i);
+  parseString( str ) {
+    let [ chord, root, octave, quality, extension ] = str.match(/([A-Za-z]b?#?)(\d)([a-z]{3})([b?#?\d]*)/i) 
 
-    var _str$match2 = _slicedToArray(_str$match, 5);
+    return [ root.toLowerCase(), octave, quality.toLowerCase(), extension ]
+  },
+}
 
-    var chord = _str$match2[0];
-    var root = _str$match2[1];
-    var octave = _str$match2[2];
-    var quality = _str$match2[3];
-    var extension = _str$match2[4];
+let Scale = {
+  create( root, mode ) {
+    let scale = Object.create( this )
 
+    scale.rootNumber = Note.convertToMIDI( root )
 
-    return [root.toLowerCase(), octave, quality.toLowerCase(), extension];
-  }
-};
-
-var Scale = {
-  create: function create(root, mode) {
-    var scale = Object.create(this);
-
-    scale.rootNumber = Note.convertToMIDI(root);
-
-    scale.root = function (v) {
-      if (typeof v === 'string') {
-        root = v;
-        scale.rootNumber = Note.convertToMIDI(root);
-      } else {
-        return root;
+    scale.root = function( v ) {
+      if( typeof v === 'string' ) {
+        root = v
+        scale.rootNumber = Note.convertToMIDI( root )
+      }else{
+        return root
       }
-    };
+    }
+    
+    scale.modeNumbers = Scale.modes[ mode ]
 
-    scale.modeNumbers = Scale.modes[mode];
-
-    scale.mode = function (v) {
-      if (typeof v === 'string') {
-        mode = v;
-        mode = mode[0].toLowerCase() + mode.slice(1);
-        scale.modeNumbers = Scale.modes[mode];
-      } else {
-        return mode;
+    scale.mode = function( v ) {
+      if( typeof v === 'string' ) {
+        mode = v
+        mode = mode[0].toLowerCase() + mode.slice(1)
+        scale.modeNumbers = Scale.modes[ mode ]
+      }else{
+        return mode
       }
-    };
-
-    scale.root.valueOf = function () {
-      return root;
-    };
-    scale.mode.valueOf = function () {
-      return mode;
-    };
-
-    if (Gibber !== null) {
-      Gibber.addSequencingToMethod(scale, 'root', 1);
-      Gibber.addSequencingToMethod(scale, 'mode', 1);
     }
 
-    return scale;
+    scale.root.valueOf = () => { return root }
+    scale.mode.valueOf = () => { return mode }
+
+    if( Gibber !== null ) {
+      Gibber.addSequencingToMethod( scale, 'root', 1 )
+      Gibber.addSequencingToMethod( scale, 'mode', 1 )
+    }
+
+    return scale
   },
-  getMIDINumber: function getMIDINumber(scaleDegree) {
-    var mode = this.modeNumbers,
+
+  getMIDINumber( scaleDegree ) {
+    let mode   = this.modeNumbers,
         isNegative = scaleDegree < 0,
-        octave = Math.floor(scaleDegree / mode.length),
-        degree = mode[scaleDegree % mode.length];
+        octave = Math.floor( scaleDegree / mode.length ),
+        degree = mode[ scaleDegree % mode.length ]
 
-    if (isNegative) octave != -1;
+    if( isNegative ) octave != -1
 
-    return this.rootNumber + octave * 12 + degree;
+    return this.rootNumber + (octave * 12) + degree
   },
-
 
   modes: {
-    ionian: [0, 2, 4, 5, 7, 9, 11],
-    dorian: [0, 2, 3, 5, 7, 9, 10],
-    phrygian: [0, 1, 3, 5, 7, 8, 10],
-    lydian: [0, 2, 4, 6, 7, 9, 11],
-    mixolydian: [0, 2, 4, 5, 7, 9, 10],
-    aeolian: [0, 2, 3, 5, 7, 8, 10],
-    locrian: [0, 1, 3, 5, 6, 8, 10],
-    wholeHalf: [0, 2, 3, 5, 6, 8, 9, 11],
-    halfWhole: [0, 1, 3, 4, 6, 7, 9, 10]
+    ionian:     [0,2,4,5,7,9,11],
+    dorian:     [0,2,3,5,7,9,10],
+    phrygian:   [0,1,3,5,7,8,10],
+    lydian:     [0,2,4,6,7,9,11],
+    mixolydian: [0,2,4,5,7,9,10],
+    aeolian:    [0,2,3,5,7,8,10],
+    locrian:    [0,1,3,5,6,8,10],
+    wholeHalf:  [0,2,3,5,6,8,9,11],
+    halfWhole:  [0,1,3,4,6,7,9,10]
   }
-};
+}
 
-Scale.modes.major = Scale.modes.ionian;
-Scale.modes.minor = Scale.modes.aeolian;
-Scale.modes.blues = Scale.modes.mixolydian;
+
+Scale.modes.major = Scale.modes.ionian
+Scale.modes.minor = Scale.modes.aeolian
+Scale.modes.blues = Scale.modes.mixolydian
 
 module.exports = {
-  Note: Note,
-  Chord: Chord,
-  Scale: Scale,
+  Note, 
+  Chord, 
+  Scale, 
 
-  init: function init(_Gibber) {
-    Gibber = _Gibber;
+  init( _Gibber ) { 
+    Gibber = _Gibber; 
 
-    Scale.master = Scale.create('c4', 'aeolian');
+    Scale.master = Scale.create( 'c4','aeolian' )
+    
+    return this 
+  } 
+}
 
-    return this;
-  }
-};
 },{}],94:[function(require,module,exports){
-'use strict';
+let Utility = {
+  elementArray: function( list ) {
+    let out = []
 
-var Utility = {
-  elementArray: function elementArray(list) {
-    var out = [];
-
-    for (var i = 0; i < list.length; i++) {
-      out.push(list.item(i));
+    for( var i = 0; i < list.length; i++ ) {
+      out.push( list.item( i ) )
     }
 
-    return out;
+    return out
+  },
+  
+  _classListMethods: [ 'toggle', 'add', 'remove' ],
+
+  create( query ) {
+    let elementList = document.querySelectorAll( query ),
+        arr = Utility.elementArray( elementList )
+    
+    for( let method of Utility._classListMethods ) { 
+      arr[ method ] = ( style ) => {
+        for( let element of arr ) { 
+          element.classList[ method ]( style )
+        }
+      } 
+    }
+
+    return arr
   },
 
-  _classListMethods: ['toggle', 'add', 'remove'],
+  rndf( min=0, max=1, number, canRepeat=true ) {
+    let out = 0
+  	if( number === undefined ) {
+  		let diff = max - min,
+  		    r = Math.random(),
+  		    rr = diff * r
 
-  create: function create(query) {
-    var elementList = document.querySelectorAll(query),
-        arr = Utility.elementArray(elementList);
+  		out =  min + rr;
+  	}else{
+      let output = [],
+  		    tmp = []
 
-    var _iteratorNormalCompletion = true;
-    var _didIteratorError = false;
-    var _iteratorError = undefined;
-
-    try {
-      var _loop = function _loop() {
-        var method = _step.value;
-
-        arr[method] = function (style) {
-          var _iteratorNormalCompletion2 = true;
-          var _didIteratorError2 = false;
-          var _iteratorError2 = undefined;
-
-          try {
-            for (var _iterator2 = arr[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-              var element = _step2.value;
-
-              element.classList[method](style);
-            }
-          } catch (err) {
-            _didIteratorError2 = true;
-            _iteratorError2 = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion2 && _iterator2.return) {
-                _iterator2.return();
-              }
-            } finally {
-              if (_didIteratorError2) {
-                throw _iteratorError2;
-              }
-            }
+  		for( let i = 0; i < number; i++ ) {
+  			let num
+        if( canRepeat ) {
+          num = Utility.rndf(min, max)
+        }else{
+          num = Utility.rndf( min, max )
+          while( tmp.indexOf( num ) > -1) {
+            num = Utility.rndf( min, max )
           }
-        };
-      };
+          tmp.push( num )
+        }
+  			output.push( num )
+  		}
 
-      for (var _iterator = Utility._classListMethods[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        _loop();
+  		out = output
+  	}
+
+    return out
+  },
+
+  Rndf( _min = 0, _max = 1, quantity, canRepeat=true ) {
+    return function() {
+      let value, min, max
+
+      min = typeof _min === 'function' ? _min() : _min
+      max = typeof _max === 'function' ? _max() : _max
+  
+      if( quantity === undefined ) {
+        value = Utility.rndf( min, max )
+      }else{
+        value = Utility.rndf( min, max, quantity, canRepeat )
       }
-    } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion && _iterator.return) {
-          _iterator.return();
-        }
-      } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
-        }
+
+      return value
+    }
+  },
+
+  rndi( min = 0, max = 1, number, canRepeat = true ) {
+    let range = max - min,
+        out
+    
+    if( range < number ) canRepeat = true
+
+    if( typeof number === 'undefined' ) {
+      range = max - min
+      out = Math.round( min + Math.random() * range );
+    }else{
+  		let output = [],
+  		    tmp = []
+
+  		for( let i = 0; i < number; i++ ) {
+  			let num
+  			if( canRepeat ) {
+  				num = Utility.rndi( min, max )
+  			}else{
+  				num = Utility.rndi( min, max )
+  				while( tmp.indexOf( num ) > -1 ) {
+  					num = Utility.rndi( min, max )
+  				}
+  				tmp.push( num )
+  			}
+  			output.push( num )
+  		}
+  		out = output
+    }
+    return out
+  },
+
+  Rndi( _min = 0, _max = 1, quantity, canRepeat = true ) {
+    let range = _max - _min
+    if( typeof quantity === 'number' && range < quantity ) canRepeat = true
+
+    return function() {
+      let value = 0, min, max, range
+
+      min = typeof _min === 'function' ? _min() : _min
+      max = typeof _max === 'function' ? _max() : _max
+
+      if( quantity === undefined ) {
+        value = Utility.rndi( min, max )
+      }else{
+        value = Utility.rndi( min, max, quantity, canRepeat )
+      }
+
+      return value
+    }
+  },
+
+  random() {
+    this.randomFlag = true
+    this.randomArgs = Array.prototype.slice.call( arguments, 0 )
+
+    return this
+  },
+
+  shuffle : function( arr ) {
+    for( let j, x, i = arr.length; i; j = parseInt(Math.random() * i), x = arr[--i], arr[i] = arr[j], arr[j] = x );
+  },
+
+  beatsToMs( beats, bpm ) {
+    if( typeof bpm === 'undefined' ) bpm = Gibber.Scheduler.bpm
+
+    const beatsPerSecond = bpm / 60
+
+    return (beats / beatsPerSecond ) * 1000
+  },
+
+  future( func, time ) {
+    let msg = {
+      tick( scheduler, beat, beatOffset ) {
+        func()
       }
     }
 
-    return arr;
-  },
-  rndf: function rndf() {
-    var min = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-    var max = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-    var number = arguments[2];
-    var canRepeat = arguments.length <= 3 || arguments[3] === undefined ? true : arguments[3];
-
-    var out = 0;
-    if (number === undefined) {
-      var diff = max - min,
-          r = Math.random(),
-          rr = diff * r;
-
-      out = min + rr;
-    } else {
-      var output = [],
-          tmp = [];
-
-      for (var i = 0; i < number; i++) {
-        var num = void 0;
-        if (canRepeat) {
-          num = Utility.rndf(min, max);
-        } else {
-          num = Utility.rndf(min, max);
-          while (tmp.indexOf(num) > -1) {
-            num = Utility.rndf(min, max);
-          }
-          tmp.push(num);
-        }
-        output.push(num);
-      }
-
-      out = output;
-    }
-
-    return out;
-  },
-  Rndf: function Rndf() {
-    var _min = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-
-    var _max = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-
-    var quantity = arguments[2];
-    var canRepeat = arguments.length <= 3 || arguments[3] === undefined ? true : arguments[3];
-
-    return function () {
-      var value = void 0,
-          min = void 0,
-          max = void 0;
-
-      min = typeof _min === 'function' ? _min() : _min;
-      max = typeof _max === 'function' ? _max() : _max;
-
-      if (quantity === undefined) {
-        value = Utility.rndf(min, max);
-      } else {
-        value = Utility.rndf(min, max, quantity, canRepeat);
-      }
-
-      return value;
-    };
-  },
-  rndi: function rndi() {
-    var min = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-    var max = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-    var number = arguments[2];
-    var canRepeat = arguments.length <= 3 || arguments[3] === undefined ? true : arguments[3];
-
-    var range = max - min,
-        out = void 0;
-
-    if (range < number) canRepeat = true;
-
-    if (typeof number === 'undefined') {
-      range = max - min;
-      out = Math.round(min + Math.random() * range);
-    } else {
-      var output = [],
-          tmp = [];
-
-      for (var i = 0; i < number; i++) {
-        var num = void 0;
-        if (canRepeat) {
-          num = Utility.rndi(min, max);
-        } else {
-          num = Utility.rndi(min, max);
-          while (tmp.indexOf(num) > -1) {
-            num = Utility.rndi(min, max);
-          }
-          tmp.push(num);
-        }
-        output.push(num);
-      }
-      out = output;
-    }
-    return out;
-  },
-  Rndi: function Rndi() {
-    var _min = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
-
-    var _max = arguments.length <= 1 || arguments[1] === undefined ? 1 : arguments[1];
-
-    var quantity = arguments[2];
-    var canRepeat = arguments.length <= 3 || arguments[3] === undefined ? true : arguments[3];
-
-    var range = _max - _min;
-    if (typeof quantity === 'number' && range < quantity) canRepeat = true;
-
-    return function () {
-      var value = 0,
-          min = void 0,
-          max = void 0,
-          range = void 0;
-
-      min = typeof _min === 'function' ? _min() : _min;
-      max = typeof _max === 'function' ? _max() : _max;
-
-      if (quantity === undefined) {
-        value = Utility.rndi(min, max);
-      } else {
-        value = Utility.rndi(min, max, quantity, canRepeat);
-      }
-
-      return value;
-    };
-  },
-  random: function random() {
-    this.randomFlag = true;
-    this.randomArgs = Array.prototype.slice.call(arguments, 0);
-
-    return this;
+    Gibber.Scheduler.addMessage( msg, time )
   },
 
+  export( destination ) {
+    destination.rndf = Utility.rndf
+    destination.rndi = Utility.rndi
+    destination.Rndf = Utility.Rndf
+    destination.Rndi = Utility.Rndi
+    destination.future = Utility.future
 
-  shuffle: function shuffle(arr) {
-    for (var j, x, i = arr.length; i; j = parseInt(Math.random() * i), x = arr[--i], arr[i] = arr[j], arr[j] = x) {}
-  },
-
-  beatsToMs: function beatsToMs(beats, bpm) {
-    if (typeof bpm === 'undefined') bpm = Gibber.Scheduler.bpm;
-
-    var beatsPerSecond = bpm / 60;
-
-    return beats / beatsPerSecond * 1000;
-  },
-  future: function future(func, time) {
-    var msg = {
-      tick: function tick(scheduler, beat, beatOffset) {
-        func();
-      }
-    };
-
-    Gibber.Scheduler.addMessage(msg, time);
-  },
-  export: function _export(destination) {
-    destination.rndf = Utility.rndf;
-    destination.rndi = Utility.rndi;
-    destination.Rndf = Utility.Rndf;
-    destination.Rndi = Utility.Rndi;
-    destination.future = Utility.future;
-
-    Array.prototype.random = Array.prototype.rnd = Utility.random;
+    Array.prototype.random = Array.prototype.rnd = Utility.random
   }
-};
+}
 
-module.exports = Utility;
+module.exports = Utility
+
 },{}],95:[function(require,module,exports){
-"use strict";
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
 (function (root, factory) {
-	if (typeof define == 'function' && define.amd) {
-		define(factory);
-	} else {
-		root.VanillaTree = factory();
-	}
-})(window, function () {
+    if (typeof define == 'function' && define.amd) {
+        define( factory );
+    } else {
+        root.VanillaTree = factory();
+    }
+}(window, function () {
 	"use strict";
 	// Look at the Balalaika https://github.com/finom/balalaika
-
-	var $ = function (n, e, k, h, p, m, l, b, d, g, f, _c) {
-		_c = function c(a, b) {
-			return new _c.i(a, b);
-		};_c.i = function (a, d) {
-			k.push.apply(this, a ? a.nodeType || a == n ? [a] : "" + a === a ? /</.test(a) ? ((b = e.createElement(d || "q")).innerHTML = a, b.children) : (d && _c(d)[0] || e).querySelectorAll(a) : /f/.test(typeof a === "undefined" ? "undefined" : _typeof(a)) ? /c/.test(e.readyState) ? a() : _c(e).on("DOMContentLoaded", a) : a : k);
-		};_c.i[f = "prototype"] = (_c.extend = function (a) {
-			g = arguments;for (b = 1; b < g.length; b++) {
-				if (f = g[b]) for (d in f) {
-					a[d] = f[d];
+	var $=function(n,e,k,h,p,m,l,b,d,g,f,c){c=function(a,b){return new c.i(a,b)};c.i=function(a,d){k.push.apply(this,a?a.nodeType||a==n?[a]:""+a===a?/</.test(a)?((b=e.createElement(d||"q")).innerHTML=a,b.children):(d&&c(d)[0]||e).querySelectorAll(a):/f/.test(typeof a)?/c/.test(e.readyState)?a():c(e).on("DOMContentLoaded",a):a:k)};c.i[f="prototype"]=(c.extend=function(a){g=arguments;for(b=1;b<g.length;b++)if(f=g[b])for(d in f)a[d]=f[d];return a})(c.fn=c[f]=k,{on:function(a,d){a=a.split(h);this.map(function(c){(h[b=a[0]+(c.b$=c.b$||++p)]=h[b]||[]).push([d,a[1]]);c["add"+m](a[0],d)});return this},off:function(a,c){a=a.split(h);f="remove"+m;this.map(function(e){if(b=(g=h[a[0]+e.b$])&&g.length)for(;d=g[--b];)c&&c!=d[0]||a[1]&&a[1]!=d[1]||(e[f](a[0],d[0]),g.splice(b,1));else!a[1]&&e[f](a[0],c)});return this},is:function(a){d=(b=this[0])&&(b.matches||b["webkit"+l]||b["moz"+l]||b["ms"+l]);return!!d&&d.call(b,a)}});return c}(window,document,[],/\.(.+)/,0,"EventListener","MatchesSelector");
+	
+	var create = function( tagName, props ) {
+			return $.extend( document.createElement( tagName ), props );
+		},
+		Tree = function( s, options ) {
+			var _this = this,
+				container = _this.container = $( s )[ 0 ],
+				tree = _this.tree = container.appendChild( create( 'ul', {
+					className: 'vtree'
+				}) );
+			
+			_this.placeholder = options && options.placeholder;
+			_this._placeholder();
+			_this.leafs = {};
+			tree.addEventListener( 'click', function( evt ) {
+				if( $( evt.target ).is( '.vtree-leaf-label' ) ) {
+					_this.select( evt.target.parentNode.getAttribute('data-vtree-id') );
+				} else if( $( evt.target ).is( '.vtree-toggle' ) ) {
+					_this.toggle( evt.target.parentNode.getAttribute('data-vtree-id') );
 				}
-			}return a;
-		})(_c.fn = _c[f] = k, { on: function on(a, d) {
-				a = a.split(h);this.map(function (c) {
-					(h[b = a[0] + (c.b$ = c.b$ || ++p)] = h[b] || []).push([d, a[1]]);c["add" + m](a[0], d);
-				});return this;
-			}, off: function off(a, c) {
-				a = a.split(h);f = "remove" + m;this.map(function (e) {
-					if (b = (g = h[a[0] + e.b$]) && g.length) for (; d = g[--b];) {
-						c && c != d[0] || a[1] && a[1] != d[1] || (e[f](a[0], d[0]), g.splice(b, 1));
-					} else !a[1] && e[f](a[0], c);
-				});return this;
-			}, is: function is(a) {
-				d = (b = this[0]) && (b.matches || b["webkit" + l] || b["moz" + l] || b["ms" + l]);return !!d && d.call(b, a);
-			} });return _c;
-	}(window, document, [], /\.(.+)/, 0, "EventListener", "MatchesSelector");
-
-	var create = function create(tagName, props) {
-		return $.extend(document.createElement(tagName), props);
-	},
-	    Tree = function Tree(s, options) {
-		var _this = this,
-		    container = _this.container = $(s)[0],
-		    tree = _this.tree = container.appendChild(create('ul', {
-			className: 'vtree'
-		}));
-
-		_this.placeholder = options && options.placeholder;
-		_this._placeholder();
-		_this.leafs = {};
-		tree.addEventListener('click', function (evt) {
-			if ($(evt.target).is('.vtree-leaf-label')) {
-				_this.select(evt.target.parentNode.getAttribute('data-vtree-id'));
-			} else if ($(evt.target).is('.vtree-toggle')) {
-				_this.toggle(evt.target.parentNode.getAttribute('data-vtree-id'));
+			});
+			
+			if( options && options.contextmenu ) {
+				tree.addEventListener( 'contextmenu', function( evt ) {
+					var menu;
+					$( '.vtree-contextmenu' ).forEach( function( menu ) {
+						menu.parentNode.removeChild( menu );
+					});
+					if( $( evt.target ).is( '.vtree-leaf-label' ) ) {
+						evt.preventDefault();
+						evt.stopPropagation();
+						menu = create( 'menu', {
+							className: 'vtree-contextmenu'
+						});
+						
+						$.extend( menu.style, {
+							top: evt.offsetY,
+							left: evt.offsetX + 18,
+							display: 'block'
+						});
+						
+						options.contextmenu.forEach( function( item ) {
+							menu.appendChild( create( 'li', {
+								className: 'vtree-contextmenu-item',
+								innerHTML: item.label
+							}) ).addEventListener( 'click', item.action.bind( item, evt.target.parentNode.getAttribute('data-vtree-id') ) );
+						});
+						
+						evt.target.parentNode.appendChild( menu );
+					}
+				});
+				
+				document.addEventListener( 'click', function( evt ) {
+					$( '.vtree-contextmenu' ).forEach( function( menu ) {
+						menu.parentNode.removeChild( menu );
+					});
+				});
 			}
-		});
-
-		if (options && options.contextmenu) {
-			tree.addEventListener('contextmenu', function (evt) {
-				var menu;
-				$('.vtree-contextmenu').forEach(function (menu) {
-					menu.parentNode.removeChild(menu);
-				});
-				if ($(evt.target).is('.vtree-leaf-label')) {
-					evt.preventDefault();
-					evt.stopPropagation();
-					menu = create('menu', {
-						className: 'vtree-contextmenu'
-					});
-
-					$.extend(menu.style, {
-						top: evt.offsetY,
-						left: evt.offsetX + 18,
-						display: 'block'
-					});
-
-					options.contextmenu.forEach(function (item) {
-						menu.appendChild(create('li', {
-							className: 'vtree-contextmenu-item',
-							innerHTML: item.label
-						})).addEventListener('click', item.action.bind(item, evt.target.parentNode.getAttribute('data-vtree-id')));
-					});
-
-					evt.target.parentNode.appendChild(menu);
-				}
-			});
-
-			document.addEventListener('click', function (evt) {
-				$('.vtree-contextmenu').forEach(function (menu) {
-					menu.parentNode.removeChild(menu);
-				});
-			});
-		}
-	};
-
+		};
+	
 	Tree.prototype = {
 		constructor: Tree,
-		_dispatch: function _dispatch(name, id) {
+		_dispatch: function( name, id ) {
 			var event;
 			try {
-				event = new CustomEvent('vtree-' + name, {
+				event = new CustomEvent( 'vtree-' + name, {
 					bubbles: true,
 					cancelable: true,
 					detail: {
 						id: id
 					}
 				});
-			} catch (e) {
-				event = document.createEvent('CustomEvent');
-				event.initCustomEvent('vtree-' + name, true, true, { id: id });
+			} catch(e) {
+				event = document.createEvent( 'CustomEvent' );
+				event.initCustomEvent( 'vtree-' + name, true, true, { id: id });
 			}
-			(this.getLeaf(id, true) || this.tree).dispatchEvent(event);
+			( this.getLeaf( id, true ) || this.tree )
+				.dispatchEvent( event );
 			return this;
 		},
-		_placeholder: function _placeholder() {
+		_placeholder: function() {
 			var p;
-			if (!this.tree.children.length && this.placeholder) {
-				this.tree.innerHTML = '<li class="vtree-placeholder">' + this.placeholder + '</li>';
-			} else if (p = this.tree.querySelector('.vtree-placeholder')) {
-				this.tree.removeChild(p);
+			if( !this.tree.children.length && this.placeholder ) {
+				this.tree.innerHTML = '<li class="vtree-placeholder">' + this.placeholder + '</li>'
+			} else if( p = this.tree.querySelector( '.vtree-placeholder' ) ) {
+				this.tree.removeChild( p );
 			}
 			return this;
 		},
-		getLeaf: function getLeaf(id, notThrow) {
-			var leaf = $('[data-vtree-id="' + id + '"]', this.tree)[0];
-			if (!notThrow && !leaf) throw Error('No VanillaTree leaf with id "' + id + '"');
+		getLeaf: function( id, notThrow ) {
+			var leaf = $( '[data-vtree-id="' + id + '"]', this.tree )[ 0 ];
+			if( !notThrow && !leaf ) throw Error( 'No VanillaTree leaf with id "' + id + '"' )
 			return leaf;
 		},
-		getChildList: function getChildList(id) {
-			var list, parent;
-			if (id) {
-				parent = this.getLeaf(id);
-				if (!(list = $('ul', parent)[0])) {
-					list = parent.appendChild(create('ul', {
+		getChildList: function( id ) {
+			var list,
+				parent;
+			if( id ) {
+				parent = this.getLeaf( id );
+				if( !( list = $( 'ul', parent )[ 0 ] ) ) {
+					list = parent.appendChild( create( 'ul', {
 						className: 'vtree-subtree'
-					}));
+					}) );
 				}
 			} else {
 				list = this.tree;
@@ -9062,110 +8700,111 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 
 			return list;
 		},
-		add: function add(options) {
+		add: function( options ) {
 			var id,
-			    leaf = create('li', {
-				className: 'vtree-leaf'
-			}),
-			    parentList = this.getChildList(options.parent);
+				leaf = create( 'li', {
+					className: 'vtree-leaf'
+				}),
+				parentList = this.getChildList( options.parent );
+      
+      leaf.name = options.parent ? this.getLeaf( options.parent ).name + ':::' + options.id : options.id
+      leaf.setAttribute( 'draggable', true )
 
-			leaf.name = options.parent ? this.getLeaf(options.parent).name + ':::' + options.id : options.id;
-			leaf.setAttribute('draggable', true);
+      leaf.getParent = function() {
+        return options.parent
+      }
+      leaf.addEventListener( 'dragstart', function( evt ) {
+        //tracks['1-Marimba Wood'].devices['Operator']['Device On']
+        let path = decodeURI( leaf.name ),
+            split = path.split(':::'),
+            txt = "tracks['" + split[0] + "'].devices['" + split[1] + "']['" + split[2] + "']"
 
-			leaf.getParent = function () {
-				return options.parent;
-			};
-			leaf.addEventListener('dragstart', function (evt) {
-				//tracks['1-Marimba Wood'].devices['Operator']['Device On']
-				var path = decodeURI(leaf.name),
-				    split = path.split(':::'),
-				    txt = "tracks['" + split[0] + "'].devices['" + split[1] + "']['" + split[2] + "']";
+        evt.dataTransfer.setData( "text/plain", txt );
+        return false
+      }, true )
 
-				evt.dataTransfer.setData("text/plain", txt);
-				return false;
-			}, true);
-
-			leaf.setAttribute('data-vtree-id', id = options.id || Math.random());
-
-			leaf.appendChild(create('span', {
+			leaf.setAttribute( 'data-vtree-id', id = options.id || Math.random() );
+			
+			leaf.appendChild( create( 'span', {
 				className: 'vtree-toggle'
-			}));
-
-			leaf.appendChild(create('a', {
+			}) );
+			
+			leaf.appendChild( create( 'a', {
 				className: 'vtree-leaf-label',
 				innerHTML: options.label
-			}));
-
-			parentList.appendChild(leaf);
-
-			if (parentList !== this.tree) {
-				parentList.parentNode.classList.add('vtree-has-children');
+			}) );
+						
+			parentList.appendChild( leaf );
+			
+			if( parentList !== this.tree ) {
+				parentList.parentNode.classList.add( 'vtree-has-children' );
 			}
-
-			this.leafs[id] = options;
-
-			if (!options.opened) {
-				this.close(id);
+			
+			this.leafs[ id ] = options;
+			
+			if( !options.opened ) {
+				this.close( id );
 			}
-
-			if (options.selected) {
-				this.select(id);
+			
+			if( options.selected ) {
+				this.select( id );
 			}
-
-			return this._placeholder()._dispatch('add', id);
+			
+			return this._placeholder()._dispatch( 'add', id );
 		},
-		move: function move(id, parentId) {
-			var leaf = this.getLeaf(id),
-			    oldParent = leaf.parentNode,
-			    newParent = this.getLeaf(parentId, true);
-
-			if (newParent) {
-				newParent.classList.add('vtree-has-children');
+		move: function( id, parentId ) {
+			var leaf = this.getLeaf( id ),
+				oldParent = leaf.parentNode,
+				newParent = this.getLeaf( parentId, true );
+				
+			if( newParent ) {
+				newParent.classList.add( 'vtree-has-children' );
 			}
-
-			this.getChildList(parentId).appendChild(leaf);
-			oldParent.parentNode.classList.toggle('vtree-has-children', !!oldParent.children.length);
-
-			return this._dispatch('move', id);
+			
+			this.getChildList( parentId ).appendChild( leaf );
+			oldParent.parentNode.classList.toggle( 'vtree-has-children', !!oldParent.children.length );
+			
+			return this._dispatch( 'move', id );
 		},
-		remove: function remove(id) {
-			var leaf = this.getLeaf(id),
-			    oldParent = leaf.parentNode;
-			oldParent.removeChild(leaf);
-			oldParent.parentNode.classList.toggle('vtree-has-children', !!oldParent.children.length);
-
-			return this._placeholder()._dispatch('remove', id);
+		remove: function( id ) {
+			var leaf = this.getLeaf( id ),
+				oldParent = leaf.parentNode;
+			oldParent.removeChild( leaf );
+			oldParent.parentNode.classList.toggle( 'vtree-has-children', !!oldParent.children.length );
+			
+			return this._placeholder()._dispatch( 'remove', id );
 		},
-		open: function open(id) {
-			this.getLeaf(id).classList.remove('closed');
-			return this._dispatch('open', id);
+		open: function( id ) {
+			this.getLeaf( id ).classList.remove( 'closed' );
+			return this._dispatch( 'open', id );
 		},
-		close: function close(id) {
-			this.getLeaf(id).classList.add('closed');
-			return this._dispatch('close', id);
+		close: function( id ) {
+			this.getLeaf( id ).classList.add( 'closed' );
+			return this._dispatch( 'close', id );
 		},
-		toggle: function toggle(id) {
-			return this[this.getLeaf(id).classList.contains('closed') ? 'open' : 'close'](id);
+		toggle: function( id ) {
+			return this[ this.getLeaf( id ).classList.contains( 'closed' ) ? 'open' : 'close' ]( id );
 		},
-		select: function select(id) {
-			var leaf = this.getLeaf(id);
-
-			if (!leaf.classList.contains('vtree-selected')) {
-				$('li.vtree-leaf', this.tree).forEach(function (leaf) {
-					leaf.classList.remove('vtree-selected');
+		select: function( id ) {
+			var leaf = this.getLeaf( id );
+			
+			if( !leaf.classList.contains( 'vtree-selected' ) ) {
+				$( 'li.vtree-leaf', this.tree ).forEach( function( leaf ) {
+					leaf.classList.remove( 'vtree-selected' );
 				});
-
-				leaf.classList.add('vtree-selected');
-				this._dispatch('select', id);
+				
+				leaf.classList.add( 'vtree-selected' );
+				this._dispatch( 'select', id );
 			}
-
+			
 			return this;
 		}
 	};
-
+	
 	return Tree;
 	// Look at the Balalaika https://github.com/finom/balalaika
-});
+}));
+
 },{}],96:[function(require,module,exports){
 (function (global){
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.acorn = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
