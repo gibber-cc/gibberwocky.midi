@@ -105,13 +105,13 @@ let Gibber = {
       this.Seq._seqs[ i ].clear()
     }
     
-    setTimeout( () => {
-    for( let key in Gibber.currentTrack.markup.textMarkers ) {
-      let marker = Gibber.currentTrack.markup.textMarkers[ key ]
+    //setTimeout( () => {
+    //  for( let key in Gibber.currentTrack.markup.textMarkers ) {
+    //    let marker = Gibber.currentTrack.markup.textMarkers[ key ]
 
-      if( marker.clear ) marker.clear() 
-    }
-    }, 500 )
+    //    if( marker.clear ) marker.clear() 
+    //  }
+    //}, 500 )
 
     Gibber.MIDI.clear()
     Gibber.Gen.clear()

@@ -6141,13 +6141,13 @@ let Gibber = {
       this.Seq._seqs[ i ].clear()
     }
     
-    setTimeout( () => {
-    for( let key in Gibber.currentTrack.markup.textMarkers ) {
-      let marker = Gibber.currentTrack.markup.textMarkers[ key ]
+    //setTimeout( () => {
+    //  for( let key in Gibber.currentTrack.markup.textMarkers ) {
+    //    let marker = Gibber.currentTrack.markup.textMarkers[ key ]
 
-      if( marker.clear ) marker.clear() 
-    }
-    }, 500 )
+    //    if( marker.clear ) marker.clear() 
+    //  }
+    //}, 500 )
 
     Gibber.MIDI.clear()
     Gibber.Gen.clear()
@@ -6408,6 +6408,27 @@ const MIDI = {
     this.midiOutputList = document.querySelector( '#midiOutputSelect' )
 
     this.createChannels()
+    this.setModulationOutputRate()
+  },
+
+  setModulationOutputRate() {
+    const modulationRate = localStorage.getItem('midi.modulationOutputRate')
+
+    const modRateInput = document.querySelector('#modulationRate')
+
+    if( modulationRate !== null && modulationRate !== undefined ) {
+      Gibber.Gen.genish.gen.samplerate = parseFloat( modulationRate )
+      modRateInput.value = Gibber.Gen.genish.gen.samplerate
+    }else{
+      Gibber.Gen.genish.gen.samplerate = 60
+    }
+
+    modRateInput.onchange = function(e) {
+      Gibber.Gen.genish.gen.samplerate = e.target.value
+      
+      localStorage.setItem('midi.modulationOutputRate', Gibber.Gen.genish.gen.samplerate )
+    }
+   
   },
 
   openLastUsedPorts() {
@@ -6601,7 +6622,7 @@ let Gen  = {
 
     const update = ()=> {
       Gen.runWidgets()
-      Gibber.Environment.animationScheduler.add( update, 1000/60 )
+      Gibber.Environment.animationScheduler.add( update, 1000/Gen.genish.gen.samplerate )
     }
 
     Gibber.Environment.animationScheduler.add( update )

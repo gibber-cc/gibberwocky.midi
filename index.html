@@ -679,8 +679,10 @@ body { margin:0; padding:0 }
 
     <div class="microlib_tabs_tab" data-title="midi">
       <div id='MIDIView'>
-        <label>select MIDI input: <select id='midiInputSelect'></select></label><br>
-        <label>select MIDI output: <select id='midiOutputSelect'></select></label>
+        <label>select MIDI input:</label><br><select id='midiInputSelect'></select><br>
+        <label>select MIDI output:</label><br><select id='midiOutputSelect'></select><br>
+        <label>cc modulation output rate (in Hz):</label><br>
+        <input id='modulationRate' value=60></input>
       </div>
     </div>
 
@@ -6842,13 +6844,13 @@ let Gibber = {
       this.Seq._seqs[ i ].clear()
     }
     
-    setTimeout( () => {
-    for( let key in Gibber.currentTrack.markup.textMarkers ) {
-      let marker = Gibber.currentTrack.markup.textMarkers[ key ]
+    //setTimeout( () => {
+    //  for( let key in Gibber.currentTrack.markup.textMarkers ) {
+    //    let marker = Gibber.currentTrack.markup.textMarkers[ key ]
 
-      if( marker.clear ) marker.clear() 
-    }
-    }, 500 )
+    //    if( marker.clear ) marker.clear() 
+    //  }
+    //}, 500 )
 
     Gibber.MIDI.clear()
     Gibber.Gen.clear()
@@ -7109,6 +7111,27 @@ const MIDI = {
     this.midiOutputList = document.querySelector( '#midiOutputSelect' )
 
     this.createChannels()
+    this.setModulationOutputRate()
+  },
+
+  setModulationOutputRate() {
+    const modulationRate = localStorage.getItem('midi.modulationOutputRate')
+
+    const modRateInput = document.querySelector('#modulationRate')
+
+    if( modulationRate !== null && modulationRate !== undefined ) {
+      Gibber.Gen.genish.gen.samplerate = parseFloat( modulationRate )
+      modRateInput.value = Gibber.Gen.genish.gen.samplerate
+    }else{
+      Gibber.Gen.genish.gen.samplerate = 60
+    }
+
+    modRateInput.onchange = function(e) {
+      Gibber.Gen.genish.gen.samplerate = e.target.value
+      
+      localStorage.setItem('midi.modulationOutputRate', Gibber.Gen.genish.gen.samplerate )
+    }
+   
   },
 
   openLastUsedPorts() {
@@ -7302,7 +7325,7 @@ let Gen  = {
 
     const update = ()=> {
       Gen.runWidgets()
-      Gibber.Environment.animationScheduler.add( update, 1000/60 )
+      Gibber.Environment.animationScheduler.add( update, 1000/Gen.genish.gen.samplerate )
     }
 
     Gibber.Environment.animationScheduler.add( update )

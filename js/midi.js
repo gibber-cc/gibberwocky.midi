@@ -17,6 +17,27 @@ const MIDI = {
     this.midiOutputList = document.querySelector( '#midiOutputSelect' )
 
     this.createChannels()
+    this.setModulationOutputRate()
+  },
+
+  setModulationOutputRate() {
+    const modulationRate = localStorage.getItem('midi.modulationOutputRate')
+
+    const modRateInput = document.querySelector('#modulationRate')
+
+    if( modulationRate !== null && modulationRate !== undefined ) {
+      Gibber.Gen.genish.gen.samplerate = parseFloat( modulationRate )
+      modRateInput.value = Gibber.Gen.genish.gen.samplerate
+    }else{
+      Gibber.Gen.genish.gen.samplerate = 60
+    }
+
+    modRateInput.onchange = function(e) {
+      Gibber.Gen.genish.gen.samplerate = e.target.value
+      
+      localStorage.setItem('midi.modulationOutputRate', Gibber.Gen.genish.gen.samplerate )
+    }
+   
   },
 
   openLastUsedPorts() {

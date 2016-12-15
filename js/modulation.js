@@ -11,7 +11,7 @@ let Gen  = {
 
     const update = ()=> {
       Gen.runWidgets()
-      Gibber.Environment.animationScheduler.add( update, 1000/60 )
+      Gibber.Environment.animationScheduler.add( update, 1000/Gen.genish.gen.samplerate )
     }
 
     Gibber.Environment.animationScheduler.add( update )
