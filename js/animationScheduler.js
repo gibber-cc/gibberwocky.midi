@@ -8,7 +8,7 @@ let Scheduler = {
     window.requestAnimationFrame( this.onAnimationFrame ) 
   },
   
-  add( func, offset, idx ) {
+  add( func, offset=0, idx ) {
     let time = this.currentTime + offset
     this.queue.push({ func, time })
 

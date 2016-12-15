@@ -215,32 +215,33 @@ let Gibber = {
       
       if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
 
-      console.log( 'isGen:' , _v.isGen )
-
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
+
+          _v = Gibber.Gen.genish.gen.createCallback( _v )
+
           Gibber.Gen.assignTrackAndParamID( _v, channel, ccnum )
           
           // if a gen is not already connected to this parameter, push
-          //if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
-          //  Gibber.Gen.connected.push( _v )
-          //}
+          if( Gibber.Gen.connected.find( e => e.ccnum === ccnum && e.channel === channel ) === undefined ) {
+            Gibber.Gen.connected.push( _v )
+          }
 
           Gibber.Gen.lastConnected = _v
           
           // disconnects for fades etc.
-          if( typeof _v.shouldKill === 'object' ) {
-            Gibber.Utility.future( ()=> {
-              Gibber.Communication.send( `ungen ${parameter.id}` )
-              Gibber.Communication.send( `set ${parameter.id} ${_v.shouldKill.final}` )
+          //if( typeof _v.shouldKill === 'object' ) {
+          //  Gibber.Utility.future( ()=> {
+          //    Gibber.Communication.send( `ungen ${parameter.id}` )
+          //    Gibber.Communication.send( `set ${parameter.id} ${_v.shouldKill.final}` )
 
-              let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
-              if( widget !== undefined && widget.mark !== undefined ) {
-                widget.mark.clear()
-              }
-              delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
-            }, _v.shouldKill.after )
-          }
+          //    let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+          //    if( widget !== undefined && widget.mark !== undefined ) {
+          //      widget.mark.clear()
+          //    }
+          //    delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+          //  }, _v.shouldKill.after )
+          //}
           
           v = _v
         }else{

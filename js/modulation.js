@@ -4,8 +4,29 @@ module.exports = function( Gibber ) {
 
 
 let Gen  = {
-  init() {
+  sr: 60,
 
+  init() {
+    Gen.genish.gen.samplerate = Gen.sr
+
+    const update = ()=> {
+      Gen.runWidgets()
+      Gibber.Environment.animationScheduler.add( update, 1000/60 )
+    }
+
+    Gibber.Environment.animationScheduler.add( update )
+
+    //Gibber.Environment.codeMarkup.updateWidget( 1, Gibber.Environment.codeMarkup.genWidgets[1].gen() )
+  },
+
+  runWidgets: function () {
+    for( let id in Gibber.Environment.codeMarkup.genWidgets ) {
+      if( id === 'dirty' ) continue
+      const widget = Gibber.Environment.codeMarkup.genWidgets[ id ]
+      let value = widget.gen() 
+      Gibber.Environment.codeMarkup.updateWidget( id, value )
+      Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+    }
   },
 
   genish,
@@ -45,14 +66,14 @@ let Gen  = {
   },
   
 
-  assignTrackAndParamID: function( graph, track, id ) {
-    graph.paramID = id
-    graph.track = track
+  assignTrackAndParamID: function( graph, channel, ccnum ) {
+    graph.ccnum = ccnum
+    graph.channel = channel
 
     let count = 0, param
     while( param = graph[ count++ ] ) {
       if( typeof param() === 'object' ) {
-        Gen.assignTrackAndParamID( param(), track, id )
+        Gen.assignTrackAndParamID( param(), channel, ccnum )
       }
     }
   },

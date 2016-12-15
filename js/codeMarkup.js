@@ -35,16 +35,12 @@ let Marker = {
         isGen = false
 
     if( !shouldParse ) { // check for gen~ assignment
-      for( let ugen of Gibber.Gen.names ) {
-
-        for( let ugen of Gibber.Gen.names ) {
-          let idx = code.indexOf( ugen )
-          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
-            shouldParse = true
-            isGen = true
-
-            break;
-          }
+      for( let ugen in Gibber.Gen.genish ) {
+        let idx = code.indexOf( ugen )
+        if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+          shouldParse = true
+          isGen = true
+          break;
         }
       }
     }
@@ -93,13 +89,13 @@ let Marker = {
     widget.gen = Gibber.Gen.lastConnected
     widget.values = []
 
-    let oldWidget = Marker.genWidgets[ widget.gen.paramID ] 
+    let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
 
     if( oldWidget !== undefined ) {
       oldWidget.parentNode.removeChild( oldWidget )
     } 
     
-    Marker.genWidgets[ widget.gen.paramID ] = widget
+    Marker.genWidgets[ widget.gen.ccnum ] = widget
 
     widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
   },
@@ -125,7 +121,7 @@ let Marker = {
         widget.ctx.beginPath()
         widget.ctx.moveTo( 0,  widget.height / 2 )
         for( let i = 0; i < widget.values.length; i++ ) {
-          widget.ctx.lineTo( i, widget.values[ i ] * widget.height )
+          widget.ctx.lineTo( i, widget.height - widget.values[ i ] * widget.height )
         }
         widget.ctx.stroke()
       }

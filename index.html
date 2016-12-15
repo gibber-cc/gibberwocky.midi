@@ -4385,7 +4385,7 @@ let Scheduler = {
     window.requestAnimationFrame( this.onAnimationFrame ) 
   },
   
-  add( func, offset, idx ) {
+  add( func, offset=0, idx ) {
     let time = this.currentTime + offset
     this.queue.push({ func, time })
 
@@ -4831,16 +4831,12 @@ let Marker = {
         isGen = false
 
     if( !shouldParse ) { // check for gen~ assignment
-      for( let ugen of Gibber.Gen.names ) {
-
-        for( let ugen of Gibber.Gen.names ) {
-          let idx = code.indexOf( ugen )
-          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
-            shouldParse = true
-            isGen = true
-
-            break;
-          }
+      for( let ugen in Gibber.Gen.genish ) {
+        let idx = code.indexOf( ugen )
+        if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+          shouldParse = true
+          isGen = true
+          break;
         }
       }
     }
@@ -4889,13 +4885,13 @@ let Marker = {
     widget.gen = Gibber.Gen.lastConnected
     widget.values = []
 
-    let oldWidget = Marker.genWidgets[ widget.gen.paramID ] 
+    let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
 
     if( oldWidget !== undefined ) {
       oldWidget.parentNode.removeChild( oldWidget )
     } 
     
-    Marker.genWidgets[ widget.gen.paramID ] = widget
+    Marker.genWidgets[ widget.gen.ccnum ] = widget
 
     widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
   },
@@ -4921,7 +4917,7 @@ let Marker = {
         widget.ctx.beginPath()
         widget.ctx.moveTo( 0,  widget.height / 2 )
         for( let i = 0; i < widget.values.length; i++ ) {
-          widget.ctx.lineTo( i, widget.values[ i ] * widget.height )
+          widget.ctx.lineTo( i, widget.height - widget.values[ i ] * widget.height )
         }
         widget.ctx.stroke()
       }
@@ -6956,32 +6952,33 @@ let Gibber = {
       
       if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
 
-      console.log( 'isGen:' , _v.isGen )
-
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
+
+          _v = Gibber.Gen.genish.gen.createCallback( _v )
+
           Gibber.Gen.assignTrackAndParamID( _v, channel, ccnum )
           
           // if a gen is not already connected to this parameter, push
-          //if( Gibber.Gen.connected.find( e => e.paramID === parameter.id ) === undefined ) {
-          //  Gibber.Gen.connected.push( _v )
-          //}
+          if( Gibber.Gen.connected.find( e => e.ccnum === ccnum && e.channel === channel ) === undefined ) {
+            Gibber.Gen.connected.push( _v )
+          }
 
           Gibber.Gen.lastConnected = _v
           
           // disconnects for fades etc.
-          if( typeof _v.shouldKill === 'object' ) {
-            Gibber.Utility.future( ()=> {
-              Gibber.Communication.send( `ungen ${parameter.id}` )
-              Gibber.Communication.send( `set ${parameter.id} ${_v.shouldKill.final}` )
+          //if( typeof _v.shouldKill === 'object' ) {
+          //  Gibber.Utility.future( ()=> {
+          //    Gibber.Communication.send( `ungen ${parameter.id}` )
+          //    Gibber.Communication.send( `set ${parameter.id} ${_v.shouldKill.final}` )
 
-              let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
-              if( widget !== undefined && widget.mark !== undefined ) {
-                widget.mark.clear()
-              }
-              delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
-            }, _v.shouldKill.after )
-          }
+          //    let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+          //    if( widget !== undefined && widget.mark !== undefined ) {
+          //      widget.mark.clear()
+          //    }
+          //    delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+          //  }, _v.shouldKill.after )
+          //}
           
           v = _v
         }else{
@@ -7298,8 +7295,29 @@ module.exports = function( Gibber ) {
 
 
 let Gen  = {
-  init() {
+  sr: 60,
 
+  init() {
+    Gen.genish.gen.samplerate = Gen.sr
+
+    const update = ()=> {
+      Gen.runWidgets()
+      Gibber.Environment.animationScheduler.add( update, 1000/60 )
+    }
+
+    Gibber.Environment.animationScheduler.add( update )
+
+    //Gibber.Environment.codeMarkup.updateWidget( 1, Gibber.Environment.codeMarkup.genWidgets[1].gen() )
+  },
+
+  runWidgets: function () {
+    for( let id in Gibber.Environment.codeMarkup.genWidgets ) {
+      if( id === 'dirty' ) continue
+      const widget = Gibber.Environment.codeMarkup.genWidgets[ id ]
+      let value = widget.gen() 
+      Gibber.Environment.codeMarkup.updateWidget( id, value )
+      Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+    }
   },
 
   genish,
@@ -7339,14 +7357,14 @@ let Gen  = {
   },
   
 
-  assignTrackAndParamID: function( graph, track, id ) {
-    graph.paramID = id
-    graph.track = track
+  assignTrackAndParamID: function( graph, channel, ccnum ) {
+    graph.ccnum = ccnum
+    graph.channel = channel
 
     let count = 0, param
     while( param = graph[ count++ ] ) {
       if( typeof param() === 'object' ) {
-        Gen.assignTrackAndParamID( param(), track, id )
+        Gen.assignTrackAndParamID( param(), channel, ccnum )
       }
     }
   },
