@@ -168,7 +168,7 @@ let seqclosure = function( Gibber ) {
             //scheduler.msgs.push( msg, this.priority )
             if( this.object && this.key ) {
               if( typeof this.object[ this.key ] === 'function' ) {
-                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ), true )
               }else{
                 this.object[ this.key ] = value
               }

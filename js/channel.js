@@ -14,8 +14,8 @@ let Channel = {
       __velocity: 127,
       __duration: 1000,
       
-      note( num, offset=null ){
-        const notenum = Gibber.Theory.Note.convertToMIDI( num )
+      note( num, offset=null, doNotConvert=false ){
+        const notenum = doNotConvert === true ? num : Gibber.Theory.Note.convertToMIDI( num )
         
         let msg = [ 0x90 + channel.number, notenum, channel.__velocity ]
         const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
@@ -41,11 +41,6 @@ let Channel = {
       velocity( value ) {
         channel.__velocity = value 
       },
-
-      //cc( ccnum, value ) {
-      //  let msg =  `${channel.id} cc ${ccnum} ${value}`
-      //  Gibber.MIDI.send( msg )
-      //},
 
       mute( value ) {
         let msg =  `${channel.id} mute ${value}`

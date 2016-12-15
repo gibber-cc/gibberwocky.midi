@@ -3859,8 +3859,8 @@ let Channel = {
       __velocity: 127,
       __duration: 1000,
       
-      note( num, offset=null ){
-        const notenum = Gibber.Theory.Note.convertToMIDI( num )
+      note( num, offset=null, doNotConvert=false ){
+        const notenum = doNotConvert === true ? num : Gibber.Theory.Note.convertToMIDI( num )
         
         let msg = [ 0x90 + channel.number, notenum, channel.__velocity ]
         const baseTime = offset !== null ? window.performance.now() + offset : window.performance.now()
@@ -5727,30 +5727,44 @@ return Euclid
 const Examples = {
   default : `/* 
  * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
- * A MIDI OUTPUT IN THE MIDI TAB.
+ * A MIDI OUTPUT IN THE MIDI TAB. THEN, SELECT A MIDI INPUT TO ACCEPT
+ * MIDI CLOCK SYNC FROM YOUR DAW. These MIDI settings will be remembered
+ * from one gibberwocky.midi session to the next. For more information see 
  */
 
-// use ctrl+enter to execute line or selection
+/* 
+ * NEXT STEP (AND THIS IS JUST AS IMPORTANT) YOU MUST START
+ * THE TRANSPORT IN YOUR DAW. IF THE TRANSPORT WAS ALREADY RUNNING
+ * WHEN YOU LOADED THIS PAGE, STOP IT, AND THEN START IT AGAIN.
+ * This will create an initial sync signal between you DAW and this page.
+ * After this initial stopping / starting you should be able to start and
+ * stop the transport at will in your DAW and maintain sync in gibberwocky.midi.
+ */
 
-// pick a MIDI channel to target. 
-// subsitute another number for 0 as needed
+// OK, put some type of melodic instrument on a track in your DAW, and set that
+// track to receive messages from the MIDI output you selected for gibberwocky.
+
+// And now we're ready to start :)
+
+// Pick a MIDI channel to target. subsitute another number for 0 as needed
+// To run the line of code below, place your cursor on the line and hit Ctrl+Enter.
 channel = Gibber.MIDI.channels[0]
 
 // play a note identified by name
 channel.note( 'c4' ) // ... or d4, fb2, e#5 etc.
 
 // play a note identified by number. The number represents a
-// position in the master scale object. By default the master
-// scale is set to c4 Aeolian
-
+// position in gibberwocky's master scale object. By default the master
+// scale is set to a root of C4 and the aeolian mode.
 channel.note( 0 )
 
 // Change master scale root
-Scale.master.root( 'eb4' )
+Scale.master.root( 'e4' )
 channel.note( 0 )
 
 // You can also send raw midi note messages without using
-// gibberwocky.midi's internal scale.
+// gibberwocky.midi's internal scale with calls to midinote instead
+// of note.
 channel.midinote( 64 )
 
 // You can change velocity...
@@ -5766,15 +5780,15 @@ channel.midinote( 64 )
 channel.duration( 50 )
 channel.midinote( 64 )
 
-// sequence calls to the midinote method every 1/16 note. An optional
+// sequence calls to the note method every 1/16 note. An optional
 // third argument assigns an id# to the sequencer; by
 // default this id is set to 0 if no argument is passed.
 // Assigning sequences to different id numbers allows them
 // to run in parallel.
-channel.midinote.seq( [60,61,62,63,64,65,66,67], 1/16 )
+channel.note.seq( [0,1,2,3,4,5,6,7], 1/8 )
 
 // sequence velocity to use random values between 10-127 (midi range)
-channel.velocity.seq( Rndi( 10,127 ), 1/16 )
+channel.velocity.seq( Rndi( 10,127), 1/16 )
 
 // sequence duration of notes in milliseconds
 channel.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
@@ -7932,7 +7946,7 @@ let seqclosure = function( Gibber ) {
             //scheduler.msgs.push( msg, this.priority )
             if( this.object && this.key ) {
               if( typeof this.object[ this.key ] === 'function' ) {
-                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ) )
+                this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ), true )
               }else{
                 this.object[ this.key ] = value
               }
