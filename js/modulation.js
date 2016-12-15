@@ -5,6 +5,7 @@ module.exports = function( Gibber ) {
 
 let Gen  = {
   sr: 60,
+  __solo: null,
 
   init() {
     Gen.genish.gen.samplerate = Gen.sr
@@ -19,13 +20,23 @@ let Gen  = {
     //Gibber.Environment.codeMarkup.updateWidget( 1, Gibber.Environment.codeMarkup.genWidgets[1].gen() )
   },
 
+  solo( channel=0, ccnum=0 ) {
+    if( Gen.__solo === null ) {
+      Gen.__solo = { channel, ccnum }
+    }else{
+      Gen.__solo = null
+    }
+  },
+
   runWidgets: function () {
     for( let id in Gibber.Environment.codeMarkup.genWidgets ) {
       if( id === 'dirty' ) continue
       const widget = Gibber.Environment.codeMarkup.genWidgets[ id ]
       let value = widget.gen() 
       Gibber.Environment.codeMarkup.updateWidget( id, value )
-      Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+      if( Gen.__solo === null || ( Gen.__solo.channel === widget.gen.channel && Gen.__solo.ccnum === widget.gen.ccnum) ) {
+        Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+      }
     }
   },
 

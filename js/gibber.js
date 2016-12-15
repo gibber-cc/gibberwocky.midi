@@ -263,7 +263,18 @@ let Gibber = {
         return v
       }
     }
+    
+    // solo cc output for midi mapping
+    let soloing = false
+    obj[ methodName ].solo = function() {
+      if( soloing === false ) {
+        Gibber.Gen.__solo = { channel, ccnum }
+      }else{
+        Gibber.Gen.__solo = null
+      }
 
+      soloing = !soloing
+    }
     //p.properties = parameter
 
     Gibber.addSequencingToMethod( obj, methodName, 0, seqKey )
