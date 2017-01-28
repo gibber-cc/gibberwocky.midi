@@ -11,6 +11,11 @@ let Channel = {
       number,
 		  sequences:{},
       sends:[],
+      markup:{
+        textMarkers:{}
+      
+      },
+
       __velocity: 127,
       __duration: 1000,
       

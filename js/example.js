@@ -288,8 +288,10 @@ s = Score([
  * The lengths of the patterns found in a Steps object can
  * differ. By default, the amount of time for each step in
  * a pattern equals 1 divided by the number of steps in the
- * pattern. In the example below, each pattern has sixteen
- * steps, so each step represents a sixteenth note.
+ * pattern. In the example below, most patterns have sixteen
+ * steps, so each step represents a sixteenth note. However,
+ * the first two patterns (60 and 62) only have four steps, so
+ * each is a quarter note. 
  *
  * The individual patterns can be accessed using the note
  * numbers they are assigned to. So, given an instance with
@@ -301,12 +303,12 @@ s = Score([
  */ 
 
 a = Steps({
-  [60]: '3.3f..4..8.5...f',
-  [62]: '7.9.f4.....6f...',
+  [60]: 'ffff',
+  [62]: '.a.a',
   [64]: '........7.9.c..d',
   [65]: '..6..78..b......',
-  [67]: '.f..3.........f.',  
-  [71]: 'e.a.e.a.e.a.a...',  
+  [67]: '..c.f....f..f..3',  
+  [71]: '.e.a.a...e.a.e.a',  
   [72]: '..............e.',
 }, Gibber.MIDI.channels[0] )
 

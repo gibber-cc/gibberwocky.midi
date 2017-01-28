@@ -31,6 +31,7 @@ let Gibber = {
     window.log           = this.log
     window.Theory        = this.Theory
     window.Scale         = this.Theory.Scale.master
+    window.channels      = this.MIDI.channels
     
     Gibber.Gen.export( window )
 
@@ -46,6 +47,7 @@ let Gibber = {
 
     this.Environment.init( Gibber )
     this.Theory.init( Gibber )
+
     this.log = this.Environment.log
 
     if( this.Environment.debug ) {
@@ -210,13 +212,24 @@ let Gibber = {
     }
 
     
-    obj[ methodName ] = p = ( _v ) => {
+    obj[ methodName ] = p = ( _v, shouldTransform=true ) => {
       //if( p.properties.quantized === 1 ) _v = Math.round( _v )
       
       if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
 
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
+          if( shouldTransform === true ) { // affine transform -1:1 to 0:127
+            _v = Gibber.Gen.genish.floor(
+              Gibber.Gen.genish.mul( 
+                Gibber.Gen.genish.div( 
+                  Gibber.Gen.genish.add( 1, _v ), 
+                  2 
+                ), 
+                127 
+              ) 
+            )
+          }
 
           _v = Gibber.Gen.genish.gen.createCallback( _v )
 

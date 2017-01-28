@@ -173,7 +173,7 @@ let Environment = {
                 selectedCode.code, 
                 selectedCode.selection, 
                 cm, 
-                Gibber.currentTrack 
+                Gibber.MIDI.channels[0]
               ) 
             }
         
@@ -203,7 +203,7 @@ let Environment = {
                 selectedCode.code, 
                 selectedCode.selection, 
                 cm, 
-                Gibber.currentTrack 
+                Gibber.MIDI.channels[0]
               ) 
             }
         
