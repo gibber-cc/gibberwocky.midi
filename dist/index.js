@@ -3674,6 +3674,226 @@ module.exports = function (in1) {
   return ugen;
 };
 },{"./floor.js":26,"./gen.js":29,"./memo.js":41,"./sub.js":64}],73:[function(require,module,exports){
+let Gibber = null
+
+const MIDI = {
+  channels: [],
+
+  init( _Gibber ) {
+    Gibber = _Gibber
+
+    const midiPromise = navigator.requestMIDIAccess()
+      .then( midiAccess => {
+        MIDI.midiAccess = midiAccess
+        MIDI.createInputAndOutputLists( midiAccess )
+        MIDI.openLastUsedPorts()
+      }, ()=> console.log('access failure') )
+
+    this.midiInputList = document.querySelector( '#midiInputSelect' )
+    this.midiOutputList = document.querySelector( '#midiOutputSelect' )
+
+    this.createChannels()
+    this.setModulationOutputRate()
+  },
+
+  setModulationOutputRate() {
+    const modulationRate = localStorage.getItem('midi.modulationOutputRate')
+
+    const modRateInput = document.querySelector('#modulationRate')
+
+    if( modulationRate !== null && modulationRate !== undefined ) {
+      Gibber.Gen.genish.gen.samplerate = parseFloat( modulationRate )
+      modRateInput.value = Gibber.Gen.genish.gen.samplerate
+    }else{
+      Gibber.Gen.genish.gen.samplerate = 60
+    }
+
+    modRateInput.onchange = function(e) {
+      Gibber.Gen.genish.gen.samplerate = e.target.value
+      
+      localStorage.setItem('midi.modulationOutputRate', Gibber.Gen.genish.gen.samplerate )
+    }
+   
+  },
+
+  openLastUsedPorts() {
+    const lastMIDIInput = localStorage.getItem('midi.input'),
+          lastMIDIOutput = localStorage.getItem('midi.output')
+
+    if( lastMIDIInput !== null && lastMIDIInput !== undefined ) {
+      this.selectInputByName( lastMIDIInput ) 
+    }
+    if( lastMIDIOutput !== null && lastMIDIOutput !== undefined ) {
+      this.selectOutputByName( lastMIDIOutput ) 
+    }
+  },
+  createChannels() {
+    for( let i = 0; i < 16; i++ ) {
+      this.channels.push( Gibber.Channel( i ) )
+    }
+  },
+
+  createInputAndOutputLists( midiAccess ) {
+    let optin = document.createElement( 'option' )
+    optin.text = 'none'
+    let optout = document.createElement( 'option' )
+    optout.text = 'none'
+    MIDI.midiInputList.add( optin )
+    MIDI.midiOutputList.add( optout )
+
+    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI
+    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI
+    
+    const inputs = midiAccess.inputs
+    for( let input of inputs.values() ) {
+      const opt = document.createElement( 'option' )
+      opt.text = input.name
+      opt.input = input
+      MIDI.midiInputList.add( opt )
+    }
+
+    const outputs = midiAccess.outputs
+    for( let output of outputs.values() ) {
+      const opt = document.createElement('option')
+      opt.output = output
+      opt.text = output.name
+      MIDI.midiOutputList.add(opt)
+    }
+
+  },
+
+  selectInputViaGUI( e ) {
+    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
+      const opt = e.target[ e.target.selectedIndex ]
+      const input = opt.input
+      input.onmidimessage = MIDI.handleMsg
+      input.open()
+      MIDI.input = input
+      localStorage.setItem( 'midi.input', input.name )
+    }
+  
+  },
+
+  selectOutputViaGUI( e ) {
+    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
+      const opt = e.target[ e.target.selectedIndex ]
+      const output = opt.output
+      output.open()
+      MIDI.output = output
+      localStorage.setItem( 'midi.output', output.name )
+    }
+  },
+
+  selectInputByName( name ) {
+    const inputs = MIDI.midiAccess.inputs
+    let found = false
+    for( let input of inputs.values() ) {
+      if( name === input.name ) {
+        input.onmidimessage = MIDI.handleMsg
+        input.open()
+        MIDI.input = input
+        Gibber.Environment.log( 'MIDI input ' + name + ' opened.' )
+        found = true
+      }
+    }
+
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiInputList.children.length; i++ ) {
+        if( name === MIDI.midiInputList.children[i].innerText ) {
+          MIDI.midiInputList.selectedIndex = i 
+        }
+      }
+    }
+  },
+
+  selectOutputByName( name ) {
+    const outputs = MIDI.midiAccess.outputs
+    let found = false
+    for( let output of outputs.values() ) {
+      if( name === output.name ) {
+        output.onmidimessage = MIDI.handleMsg
+        output.open()
+        MIDI.output = output
+        Gibber.Environment.log( 'MIDI output ' + name + ' opened.' )
+        found = true
+      }
+    }
+
+    if( found === true ) {
+      for( let i = 0; i < MIDI.midiOutputList.children.length; i++ ) {
+        if( name === MIDI.midiOutputList.children[i].innerText ) {
+          MIDI.midiOutputList.selectedIndex = i 
+        }
+      }
+    }
+  },
+
+  send( msg, timestamp ) {
+    MIDI.output.send( msg, timestamp )
+  },
+
+  handleMsg( msg ) {
+    if( msg.data[0] !== 248 ) {
+      //console.log( 'midi message:', msg.data[0], msg.data[1] )
+    }
+    if( msg.data[0] === 0xf2 ) {
+      MIDI.timestamps.length = 0
+      MIDI.clockCount = 0
+      MIDI.lastClockTime = null
+    } else if (msg.data[0] === 0xfa ) {
+      MIDI.running = true
+    } else if (msg.data[0] === 0xfc ) {
+      MIDI.running = false
+    } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
+
+      if( MIDI.timestamps.length > 0 ) {
+        const diff = msg.timeStamp - MIDI.lastClockTime
+        MIDI.timestamps.unshift( diff )
+        while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
+
+        const sum = MIDI.timestamps.reduce( (a,b) => a+b )
+        const avg = sum / MIDI.timestamps.length
+
+        let bpm = (1000 / (avg * 24)) * 60
+        Gibber.Scheduler.bpm = bpm
+ 
+        if( MIDI.clockCount++ === 23 ) {
+          Gibber.Scheduler.advanceBeat()
+          MIDI.clockCount = 0
+        }
+
+        MIDI.lastClockTime = msg.timeStamp
+        
+      }else{
+        if( MIDI.lastClockTime !== null ) {
+          const diff = msg.timeStamp - MIDI.lastClockTime
+          MIDI.timestamps.unshift( diff )
+          MIDI.lastClockTime = msg.timeStamp
+        }else{
+          MIDI.lastClockTime = msg.timeStamp
+        }
+        MIDI.clockCount++
+      }    
+    }
+
+  },
+  
+  clear() { 
+    // This should only happen on a MIDI Stop message
+    // this.timestamps.length = 0
+    // this.clockCount = 0
+    // this.lastClockTime = null
+  },
+  running: false,
+  timestamps:[],
+  clockCount: 0,
+  lastClockTime:null
+
+}
+
+module.exports = MIDI
+
+},{}],74:[function(require,module,exports){
 const Queue = require( './priorityqueue.js' )
 
 let Scheduler = {
@@ -3728,7 +3948,7 @@ Scheduler.onAnimationFrame = Scheduler.onAnimationFrame.bind( Scheduler )
 
 module.exports = Scheduler
 
-},{"./priorityqueue.js":88}],74:[function(require,module,exports){
+},{"./priorityqueue.js":88}],75:[function(require,module,exports){
 module.exports = function( Gibber ) {
 
 let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
@@ -3842,7 +4062,7 @@ return Arp
 
 }
 
-},{}],75:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 module.exports = function( Gibber ) {
 
 const noteon  = 0x90,
@@ -3856,6 +4076,11 @@ let Channel = {
       number,
 		  sequences:{},
       sends:[],
+      markup:{
+        textMarkers:{}
+      
+      },
+
       __velocity: 127,
       __duration: 1000,
       
@@ -3886,11 +4111,6 @@ let Channel = {
       velocity( value ) {
         channel.__velocity = value 
       },
-
-      //cc( ccnum, value ) {
-      //  let msg =  `${channel.id} cc ${ccnum} ${value}`
-      //  Gibber.MIDI.send( msg )
-      //},
 
       mute( value ) {
         let msg =  `${channel.id} mute ${value}`
@@ -3981,7 +4201,7 @@ return Channel.create.bind( Channel )
 
 }
 
-},{}],76:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 const Queue = require( './priorityqueue.js' )
 const Big   = require( 'big.js' )
 
@@ -4092,7 +4312,7 @@ let Scheduler = {
 
 module.exports = Scheduler
 
-},{"./priorityqueue.js":88,"big.js":98}],77:[function(require,module,exports){
+},{"./priorityqueue.js":88,"big.js":98}],78:[function(require,module,exports){
 const acorn = require( 'acorn' )
 
 const callDepths = [
@@ -4137,6 +4357,17 @@ let Marker = {
           isGen = true
           break;
         }
+      }
+      if( !isGen ) {
+        for( let ugen in Gibber.Gen.composites ) {
+          let idx = code.indexOf( ugen )
+          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+            shouldParse = true
+            isGen = true
+            break;
+          }
+        }
+
       }
     }
 
@@ -4216,7 +4447,7 @@ let Marker = {
         widget.ctx.beginPath()
         widget.ctx.moveTo( 0,  widget.height / 2 )
         for( let i = 0; i < widget.values.length; i++ ) {
-          widget.ctx.lineTo( i, widget.height - widget.values[ i ] * widget.height )
+          widget.ctx.lineTo( i, widget.height - (widget.values[ i ] / 127) * widget.height )
         }
         widget.ctx.stroke()
       }
@@ -5012,7 +5243,7 @@ let Marker = {
 
 module.exports = Marker
 
-},{"./utility.js":94,"acorn":96}],78:[function(require,module,exports){
+},{"./utility.js":94,"acorn":96}],79:[function(require,module,exports){
 let Gibber = null
 
 let Communication = {
@@ -5187,7 +5418,7 @@ Communication.querystring =  query
 
 module.exports = Communication
 
-},{}],79:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 // singleton 
 let Gibber = null,
     CodeMirror = require( 'codemirror' )
@@ -5363,7 +5594,7 @@ let Environment = {
                 selectedCode.code, 
                 selectedCode.selection, 
                 cm, 
-                Gibber.currentTrack 
+                Gibber.MIDI.channels[0]
               ) 
             }
         
@@ -5393,7 +5624,7 @@ let Environment = {
                 selectedCode.code, 
                 selectedCode.selection, 
                 cm, 
-                Gibber.currentTrack 
+                Gibber.MIDI.channels[0]
               ) 
             }
         
@@ -5489,7 +5720,7 @@ let Environment = {
 
 module.exports = Environment
 
-},{"../node_modules/codemirror/addon/edit/closebrackets.js":99,"../node_modules/codemirror/addon/edit/matchbrackets.js":100,"../node_modules/codemirror/addon/hint/javascript-hint.js":101,"../node_modules/codemirror/addon/hint/show-hint.js":102,"../node_modules/codemirror/mode/javascript/javascript.js":104,"./animationScheduler.js":73,"./codeMarkup.js":77,"./lomView.js":84,"./tabs-standalone.microlib-latest.js":92,"codemirror":103}],80:[function(require,module,exports){
+},{"../node_modules/codemirror/addon/edit/closebrackets.js":99,"../node_modules/codemirror/addon/edit/matchbrackets.js":100,"../node_modules/codemirror/addon/hint/javascript-hint.js":101,"../node_modules/codemirror/addon/hint/show-hint.js":102,"../node_modules/codemirror/mode/javascript/javascript.js":104,"./animationScheduler.js":74,"./codeMarkup.js":78,"./lomView.js":85,"./tabs-standalone.microlib-latest.js":92,"codemirror":103}],81:[function(require,module,exports){
 module.exports = function( Gibber ) {
 
 let Pattern = Gibber.Pattern
@@ -5723,7 +5954,7 @@ Euclid.test = function( testKey ) {
 return Euclid
 }
 
-},{}],81:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 const Examples = {
   default : `/* 
  * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
@@ -6014,8 +6245,10 @@ s = Score([
  * The lengths of the patterns found in a Steps object can
  * differ. By default, the amount of time for each step in
  * a pattern equals 1 divided by the number of steps in the
- * pattern. In the example below, each pattern has sixteen
- * steps, so each step represents a sixteenth note.
+ * pattern. In the example below, most patterns have sixteen
+ * steps, so each step represents a sixteenth note. However,
+ * the first two patterns (60 and 62) only have four steps, so
+ * each is a quarter note. 
  *
  * The individual patterns can be accessed using the note
  * numbers they are assigned to. So, given an instance with
@@ -6027,12 +6260,12 @@ s = Score([
  */ 
 
 a = Steps({
-  [60]: '3.3f..4..8.5...f',
-  [62]: '7.9.f4.....6f...',
+  [60]: 'ffff',
+  [62]: '.a.a',
   [64]: '........7.9.c..d',
   [65]: '..6..78..b......',
-  [67]: '.f..3.........f.',  
-  [71]: 'e.a.e.a.e.a.a...',  
+  [67]: '..c.f....f..f..3',  
+  [71]: '.e.a.a...e.a.e.a',  
   [72]: '..............e.',
 }, Gibber.MIDI.channels[0] )
 
@@ -6047,7 +6280,7 @@ a.reverse.seq( 1, 2 )`,
 
 module.exports = Examples//stepsExample2//simpleExample//genExample//exampleScore4//exampleScore4 //'this.note.seq( [0,1], Euclid(5,8) );' //exampleCode
 
-},{}],82:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 let Gibber = {
   Utility:       require( './utility.js' ),
   Communication: require( './communication.js' ),
@@ -6081,6 +6314,7 @@ let Gibber = {
     window.log           = this.log
     window.Theory        = this.Theory
     window.Scale         = this.Theory.Scale.master
+    window.channels      = this.MIDI.channels
     
     Gibber.Gen.export( window )
 
@@ -6096,6 +6330,7 @@ let Gibber = {
 
     this.Environment.init( Gibber )
     this.Theory.init( Gibber )
+
     this.log = this.Environment.log
 
     if( this.Environment.debug ) {
@@ -6260,13 +6495,24 @@ let Gibber = {
     }
 
     
-    obj[ methodName ] = p = ( _v ) => {
+    obj[ methodName ] = p = ( _v, shouldTransform=true ) => {
       //if( p.properties.quantized === 1 ) _v = Math.round( _v )
       
       if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
 
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
+          if( shouldTransform === true ) { // affine transform -1:1 to 0:127
+            _v = Gibber.Gen.genish.floor(
+              Gibber.Gen.genish.mul( 
+                Gibber.Gen.genish.div( 
+                  Gibber.Gen.genish.add( 1, _v ), 
+                  2 
+                ), 
+                127 
+              ) 
+            )
+          }
 
           _v = Gibber.Gen.genish.gen.createCallback( _v )
 
@@ -6342,7 +6588,7 @@ Gibber.Channel = require( './channel.js')( Gibber )
 
 module.exports = Gibber
 
-},{"./MIDI.js":85,"./arp.js":74,"./channel.js":75,"./clock.js":76,"./communication.js":78,"./environment.js":79,"./euclidean.js":80,"./example.js":81,"./modulation.js":86,"./pattern.js":87,"./score.js":89,"./seq.js":90,"./steps.js":91,"./theory.js":93,"./utility.js":94}],83:[function(require,module,exports){
+},{"./MIDI.js":73,"./arp.js":75,"./channel.js":76,"./clock.js":77,"./communication.js":79,"./environment.js":80,"./euclidean.js":81,"./example.js":82,"./modulation.js":86,"./pattern.js":87,"./score.js":89,"./seq.js":90,"./steps.js":91,"./theory.js":93,"./utility.js":94}],84:[function(require,module,exports){
 require( 'babel-polyfill' )
 
 let Gibber = require( './gibber.js' ),
@@ -6352,7 +6598,7 @@ let Gibber = require( './gibber.js' ),
 Gibber.init()
 window.Gibber = Gibber
 
-},{"./gibber.js":82,"babel-polyfill":97}],84:[function(require,module,exports){
+},{"./gibber.js":83,"babel-polyfill":97}],85:[function(require,module,exports){
 require( './vanillatree.js' )
 
 let Gibber = null, count = -1
@@ -6413,231 +6659,10 @@ let lomView = {
 
 module.exports = lomView 
 
-},{"./vanillatree.js":95}],85:[function(require,module,exports){
-let Gibber = null
-
-const MIDI = {
-  channels: [],
-
-  init( _Gibber ) {
-    Gibber = _Gibber
-
-    const midiPromise = navigator.requestMIDIAccess()
-      .then( midiAccess => {
-        MIDI.midiAccess = midiAccess
-        MIDI.createInputAndOutputLists( midiAccess )
-        MIDI.openLastUsedPorts()
-      }, ()=> console.log('access failure') )
-
-    this.midiInputList = document.querySelector( '#midiInputSelect' )
-    this.midiOutputList = document.querySelector( '#midiOutputSelect' )
-
-    this.createChannels()
-    this.setModulationOutputRate()
-  },
-
-  setModulationOutputRate() {
-    const modulationRate = localStorage.getItem('midi.modulationOutputRate')
-
-    const modRateInput = document.querySelector('#modulationRate')
-
-    if( modulationRate !== null && modulationRate !== undefined ) {
-      Gibber.Gen.genish.gen.samplerate = parseFloat( modulationRate )
-      modRateInput.value = Gibber.Gen.genish.gen.samplerate
-    }else{
-      Gibber.Gen.genish.gen.samplerate = 60
-    }
-
-    modRateInput.onchange = function(e) {
-      Gibber.Gen.genish.gen.samplerate = e.target.value
-      
-      localStorage.setItem('midi.modulationOutputRate', Gibber.Gen.genish.gen.samplerate )
-    }
-   
-  },
-
-  openLastUsedPorts() {
-    const lastMIDIInput = localStorage.getItem('midi.input'),
-          lastMIDIOutput = localStorage.getItem('midi.output')
-
-    if( lastMIDIInput !== null && lastMIDIInput !== undefined ) {
-      this.selectInputByName( lastMIDIInput ) 
-    }
-    if( lastMIDIOutput !== null && lastMIDIOutput !== undefined ) {
-      this.selectOutputByName( lastMIDIOutput ) 
-    }
-  },
-  createChannels() {
-    for( let i = 0; i < 16; i++ ) {
-      this.channels.push( Gibber.Channel( i ) )
-    }
-  },
-
-  createInputAndOutputLists( midiAccess ) {
-    let optin = document.createElement( 'option' )
-    optin.text = 'none'
-    let optout = document.createElement( 'option' )
-    optout.text = 'none'
-    MIDI.midiInputList.add( optin )
-    MIDI.midiOutputList.add( optout )
-
-    MIDI.midiInputList.onchange = MIDI.selectInputViaGUI
-    MIDI.midiOutputList.onchange = MIDI.selectOutputViaGUI
-    
-    const inputs = midiAccess.inputs
-    for( let input of inputs.values() ) {
-      const opt = document.createElement( 'option' )
-      opt.text = input.name
-      opt.input = input
-      MIDI.midiInputList.add( opt )
-    }
-
-    const outputs = midiAccess.outputs
-    for( let output of outputs.values() ) {
-      const opt = document.createElement('option')
-      opt.output = output
-      opt.text = output.name
-      MIDI.midiOutputList.add(opt)
-    }
-
-  },
-
-  selectInputViaGUI( e ) {
-    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
-      const opt = e.target[ e.target.selectedIndex ]
-      const input = opt.input
-      input.onmidimessage = MIDI.handleMsg
-      input.open()
-      MIDI.input = input
-      localStorage.setItem( 'midi.input', input.name )
-    }
-  
-  },
-
-  selectOutputViaGUI( e ) {
-    if( e.target.selectedIndex !== 0 ) { // does not equal 'none'
-      const opt = e.target[ e.target.selectedIndex ]
-      const output = opt.output
-      output.open()
-      MIDI.output = output
-      localStorage.setItem( 'midi.output', output.name )
-    }
-  },
-
-  selectInputByName( name ) {
-    const inputs = MIDI.midiAccess.inputs
-    let found = false
-    for( let input of inputs.values() ) {
-      if( name === input.name ) {
-        input.onmidimessage = MIDI.handleMsg
-        input.open()
-        MIDI.input = input
-        Gibber.Environment.log( 'MIDI input ' + name + ' opened.' )
-        found = true
-      }
-    }
-
-    if( found === true ) {
-      for( let i = 0; i < MIDI.midiInputList.children.length; i++ ) {
-        if( name === MIDI.midiInputList.children[i].innerText ) {
-          MIDI.midiInputList.selectedIndex = i 
-        }
-      }
-    }
-  },
-
-  selectOutputByName( name ) {
-    const outputs = MIDI.midiAccess.outputs
-    let found = false
-    for( let output of outputs.values() ) {
-      if( name === output.name ) {
-        output.onmidimessage = MIDI.handleMsg
-        output.open()
-        MIDI.output = output
-        Gibber.Environment.log( 'MIDI output ' + name + ' opened.' )
-        found = true
-      }
-    }
-
-    if( found === true ) {
-      for( let i = 0; i < MIDI.midiOutputList.children.length; i++ ) {
-        if( name === MIDI.midiOutputList.children[i].innerText ) {
-          MIDI.midiOutputList.selectedIndex = i 
-        }
-      }
-    }
-  },
-
-  send( msg, timestamp ) {
-    MIDI.output.send( msg, timestamp )
-  },
-
-  handleMsg( msg ) {
-    if( msg.data[0] !== 248 ) {
-      //console.log( 'midi message:', msg.data[0], msg.data[1] )
-    }
-    if( msg.data[0] === 0xf2 ) {
-      MIDI.timestamps.length = 0
-      MIDI.clockCount = 0
-      MIDI.lastClockTime = null
-    } else if (msg.data[0] === 0xfa ) {
-      MIDI.running = true
-    } else if (msg.data[0] === 0xfc ) {
-      MIDI.running = false
-    } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
-
-      if( MIDI.timestamps.length > 0 ) {
-        const diff = msg.timeStamp - MIDI.lastClockTime
-        MIDI.timestamps.unshift( diff )
-        while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
-
-        const sum = MIDI.timestamps.reduce( (a,b) => a+b )
-        const avg = sum / MIDI.timestamps.length
-
-        let bpm = (1000 / (avg * 24)) * 60
-        Gibber.Scheduler.bpm = bpm
- 
-        if( MIDI.clockCount++ === 23 ) {
-          Gibber.Scheduler.advanceBeat()
-          MIDI.clockCount = 0
-        }
-
-        MIDI.lastClockTime = msg.timeStamp
-        
-      }else{
-        if( MIDI.lastClockTime !== null ) {
-          const diff = msg.timeStamp - MIDI.lastClockTime
-          MIDI.timestamps.unshift( diff )
-          MIDI.lastClockTime = msg.timeStamp
-        }else{
-          MIDI.lastClockTime = msg.timeStamp
-        }
-        MIDI.clockCount++
-      }    
-    }
-
-  },
-  
-  clear() { 
-    // This should only happen on a MIDI Stop message
-    // this.timestamps.length = 0
-    // this.clockCount = 0
-    // this.lastClockTime = null
-  },
-  running: false,
-  timestamps:[],
-  clockCount: 0,
-  lastClockTime:null
-
-}
-
-module.exports = MIDI
-
-},{}],86:[function(require,module,exports){
+},{"./vanillatree.js":95}],86:[function(require,module,exports){
 const genish = require( 'genish.js' )
 
 module.exports = function( Gibber ) {
-
 
 let Gen  = {
   sr: 60,
@@ -6647,8 +6672,8 @@ let Gen  = {
     Gen.genish.gen.samplerate = Gen.sr
 
     const update = ()=> {
-      Gen.runWidgets()
       Gibber.Environment.animationScheduler.add( update, 1000/Gen.genish.gen.samplerate )
+      Gen.runWidgets()
     }
 
     Gibber.Environment.animationScheduler.add( update )
@@ -6667,11 +6692,14 @@ let Gen  = {
   runWidgets: function () {
     for( let id in Gibber.Environment.codeMarkup.genWidgets ) {
       if( id === 'dirty' ) continue
+
       const widget = Gibber.Environment.codeMarkup.genWidgets[ id ]
-      let value = widget.gen() 
+      const value = widget.gen() 
+
       Gibber.Environment.codeMarkup.updateWidget( id, value )
+      
       if( Gen.__solo === null || ( Gen.__solo.channel === widget.gen.channel && Gen.__solo.ccnum === widget.gen.ccnum) ) {
-        Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+        Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, value ]) 
       }
     }
   },
@@ -6742,7 +6770,7 @@ let Gen  = {
   time: 'time',
 
   composites: { 
-    lfo( frequency = .1, amp = .5, center = .5 ) {
+    lfo( frequency = .1, amp = 1, center = 0 ) {
       let _cycle = cycle( frequency ),
           _mul   = mul( _cycle, amp ),
           _add   = add( center, _mul ) 
@@ -6775,19 +6803,21 @@ let Gen  = {
       Gibber.addSequencingToMethod( _add, 'amp' )
       Gibber.addSequencingToMethod( _add, 'center' )
 
+      _add.isGen = true
+
       return _add
     },
 
     fade( time = 1, from = 1, to = 0 ) {
-      let fade, amt, beatsInSeconds = time * ( 60 / Gibber.Live.LOM.bpm )
+      let fade, amt, beatsInSeconds = time * ( 60 / Gibber.Scheduler.bpm )
      
       if( from > to ) {
         amt = from - to
 
-        fade = gtp( sub( from, accum( div( amt, mul(beatsInSeconds, samplerate ) ), 0 ) ), to )
+        fade = gtp( sub( from, accum( div( amt, mul(beatsInSeconds, Gen.samplerate ) ), 0 ) ), to )
       }else{
         amt = to - from
-        fade = add( from, ltp( accum( div( amt, mul( beatsInSeconds, samplerate ) ), 0 ), to ) )
+        fade = add( from, ltp( accum( div( amt, mul( beatsInSeconds, Gen.samplerate ) ), 0 ), to ) )
       }
       
       // XXX should this be available in ms? msToBeats()?
@@ -6797,11 +6827,14 @@ let Gen  = {
         final: to
       }
       
+      fade.isGen = true
       return fade
     },
     
     beats( num ) {
-      return rate( 'in1', num )
+      const r = rate( 'in1', num )
+      r.isGen = true
+      return r
       // beat( n ) => rate(in1, n)
       // final string should be rate( in1, num )
     }
@@ -6809,6 +6842,7 @@ let Gen  = {
 
   export( obj ) {
     genish.export( obj )
+    Object.assign( obj, this.composites )
   }
 }
 
@@ -8006,8 +8040,9 @@ let Steps = {
 
         // TODO: is there a better way to get access to beat, beatOffset and scheduler?
         if( velocity !== 0 ) {
-          let msg = seq.externalMessages[ 'velocity' ]( velocity, seq.values.beat + seq.values.beatOffset, seq.trackID )
-          seq.values.scheduler.msgs.push( msg ) 
+          //let msg = seq.externalMessages[ 'velocity' ]( velocity, seq.values.beat + seq.values.beatOffset, seq.trackID )
+          track.velocity( velocity )
+          //seq.values.scheduler.msgs.push( msg ) 
         }
 
         args[ 0 ] = sym === '.' ? Gibber.Seq.DO_NOT_OUTPUT : key
@@ -31039,4 +31074,4 @@ var MemoryHelper = {
 
 module.exports = MemoryHelper;
 
-},{}]},{},[83]);
+},{}]},{},[84]);

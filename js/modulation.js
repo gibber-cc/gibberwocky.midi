@@ -2,7 +2,6 @@ const genish = require( 'genish.js' )
 
 module.exports = function( Gibber ) {
 
-
 let Gen  = {
   sr: 60,
   __solo: null,
@@ -11,8 +10,8 @@ let Gen  = {
     Gen.genish.gen.samplerate = Gen.sr
 
     const update = ()=> {
-      Gen.runWidgets()
       Gibber.Environment.animationScheduler.add( update, 1000/Gen.genish.gen.samplerate )
+      Gen.runWidgets()
     }
 
     Gibber.Environment.animationScheduler.add( update )
@@ -31,11 +30,14 @@ let Gen  = {
   runWidgets: function () {
     for( let id in Gibber.Environment.codeMarkup.genWidgets ) {
       if( id === 'dirty' ) continue
+
       const widget = Gibber.Environment.codeMarkup.genWidgets[ id ]
-      let value = widget.gen() 
+      const value = widget.gen() 
+
       Gibber.Environment.codeMarkup.updateWidget( id, value )
+      
       if( Gen.__solo === null || ( Gen.__solo.channel === widget.gen.channel && Gen.__solo.ccnum === widget.gen.ccnum) ) {
-        Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, Math.floor( value * 128 ) ]) 
+        Gibber.MIDI.send([ 0xb0 + widget.gen.channel, widget.gen.ccnum, value ]) 
       }
     }
   },
@@ -106,7 +108,7 @@ let Gen  = {
   time: 'time',
 
   composites: { 
-    lfo( frequency = .1, amp = .5, center = .5 ) {
+    lfo( frequency = .1, amp = 1, center = 0 ) {
       let _cycle = cycle( frequency ),
           _mul   = mul( _cycle, amp ),
           _add   = add( center, _mul ) 
@@ -139,19 +141,21 @@ let Gen  = {
       Gibber.addSequencingToMethod( _add, 'amp' )
       Gibber.addSequencingToMethod( _add, 'center' )
 
+      _add.isGen = true
+
       return _add
     },
 
     fade( time = 1, from = 1, to = 0 ) {
-      let fade, amt, beatsInSeconds = time * ( 60 / Gibber.Live.LOM.bpm )
+      let fade, amt, beatsInSeconds = time * ( 60 / Gibber.Scheduler.bpm )
      
       if( from > to ) {
         amt = from - to
 
-        fade = gtp( sub( from, accum( div( amt, mul(beatsInSeconds, samplerate ) ), 0 ) ), to )
+        fade = gtp( sub( from, accum( div( amt, mul(beatsInSeconds, Gen.samplerate ) ), 0 ) ), to )
       }else{
         amt = to - from
-        fade = add( from, ltp( accum( div( amt, mul( beatsInSeconds, samplerate ) ), 0 ), to ) )
+        fade = add( from, ltp( accum( div( amt, mul( beatsInSeconds, Gen.samplerate ) ), 0 ), to ) )
       }
       
       // XXX should this be available in ms? msToBeats()?
@@ -161,11 +165,14 @@ let Gen  = {
         final: to
       }
       
+      fade.isGen = true
       return fade
     },
     
     beats( num ) {
-      return rate( 'in1', num )
+      const r = rate( 'in1', num )
+      r.isGen = true
+      return r
       // beat( n ) => rate(in1, n)
       // final string should be rate( in1, num )
     }
@@ -173,6 +180,7 @@ let Gen  = {
 
   export( obj ) {
     genish.export( obj )
+    Object.assign( obj, this.composites )
   }
 }
 

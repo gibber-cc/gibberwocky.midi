@@ -43,6 +43,17 @@ let Marker = {
           break;
         }
       }
+      if( !isGen ) {
+        for( let ugen in Gibber.Gen.composites ) {
+          let idx = code.indexOf( ugen )
+          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+            shouldParse = true
+            isGen = true
+            break;
+          }
+        }
+
+      }
     }
 
     if( !shouldParse ) return
@@ -121,7 +132,7 @@ let Marker = {
         widget.ctx.beginPath()
         widget.ctx.moveTo( 0,  widget.height / 2 )
         for( let i = 0; i < widget.values.length; i++ ) {
-          widget.ctx.lineTo( i, widget.height - widget.values[ i ] * widget.height )
+          widget.ctx.lineTo( i, widget.height - (widget.values[ i ] / 127) * widget.height )
         }
         widget.ctx.stroke()
       }
