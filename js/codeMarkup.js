@@ -88,14 +88,14 @@ let Marker = {
     widget.style.verticalAlign = 'middle'
     widget.style.height = '1.1em'
     widget.style.width = '60px'
-    widget.style.backgroundColor = '#bbb'
+    widget.style.backgroundColor = 'transparent'
     widget.style.marginLeft = '.5em'
     widget.style.borderLeft = '1px solid #666'
     widget.style.borderRight = '1px solid #666'
     widget.setAttribute( 'width', 60 )
     widget.setAttribute( 'height', 13 )
-    widget.ctx.fillStyle = '#bbb'
-    widget.ctx.strokeStyle = '#333'
+    widget.ctx.fillStyle = 'rgba(46,50,53,1)'
+    widget.ctx.strokeStyle = '#eee'
     widget.ctx.lineWidth = .5
     widget.gen = Gibber.Gen.lastConnected
     widget.values = []
@@ -391,7 +391,7 @@ let Marker = {
 
   _addPatternFilter( patternObject ) {
     patternObject.filters.push( ( args ) => {
-      const wait = Utility.beatsToMs( patternObject.nextTime + .5,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
+      const wait = Utility.beatsToMs( patternObject.nextTime,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
 
       let idx = args[ 2 ],
           shouldUpdate = patternObject.update.shouldUpdate

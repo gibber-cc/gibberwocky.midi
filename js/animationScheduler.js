@@ -3,13 +3,15 @@ const Queue = require( './priorityqueue.js' )
 let Scheduler = {
   currentTime : null,
   queue: new Queue( ( a, b ) => a.time - b.time ),
+  animationOffset: 0,
 
   init() {
     window.requestAnimationFrame( this.onAnimationFrame ) 
   },
   
   add( func, offset=0, idx ) {
-    let time = this.currentTime + offset
+    let time = this.currentTime + offset + this.animationOffset
+    //console.log( time )
     this.queue.push({ func, time })
 
     return time
@@ -17,20 +19,19 @@ let Scheduler = {
 
   run( timestamp ) {
     let nextEvent = this.queue.peek()
-    
-    if( this.queue.length && nextEvent.time <= timestamp ) {
+
+    if( this.queue.length !== 0 && nextEvent.time <= timestamp ) {
 
       // remove event
       this.queue.pop()
-      
+
       try{
         nextEvent.func()
       }catch( e ) {
         Gibber.Environment.error( 'annotation error:', e.toString() )
       }
-      
       // call recursively
-      this.run( timestamp )
+      this.run( timestamp  )
     }
 
     if( Gibber.Environment.codeMarkup.genWidgets.dirty === true ) {
@@ -41,7 +42,7 @@ let Scheduler = {
   onAnimationFrame( timestamp ) {
     this.currentTime = timestamp
 
-    this.run( timestamp )    
+    this.run( timestamp + this.animationOffset )    
 
     window.requestAnimationFrame( this.onAnimationFrame )
   }

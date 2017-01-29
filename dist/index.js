@@ -3899,13 +3899,15 @@ const Queue = require( './priorityqueue.js' )
 let Scheduler = {
   currentTime : null,
   queue: new Queue( ( a, b ) => a.time - b.time ),
+  animationOffset: 0,
 
   init() {
     window.requestAnimationFrame( this.onAnimationFrame ) 
   },
   
   add( func, offset=0, idx ) {
-    let time = this.currentTime + offset
+    let time = this.currentTime + offset + this.animationOffset
+    //console.log( time )
     this.queue.push({ func, time })
 
     return time
@@ -3913,20 +3915,19 @@ let Scheduler = {
 
   run( timestamp ) {
     let nextEvent = this.queue.peek()
-    
-    if( this.queue.length && nextEvent.time <= timestamp ) {
+
+    if( this.queue.length !== 0 && nextEvent.time <= timestamp ) {
 
       // remove event
       this.queue.pop()
-      
+
       try{
         nextEvent.func()
       }catch( e ) {
         Gibber.Environment.error( 'annotation error:', e.toString() )
       }
-      
       // call recursively
-      this.run( timestamp )
+      this.run( timestamp  )
     }
 
     if( Gibber.Environment.codeMarkup.genWidgets.dirty === true ) {
@@ -3937,7 +3938,7 @@ let Scheduler = {
   onAnimationFrame( timestamp ) {
     this.currentTime = timestamp
 
-    this.run( timestamp )    
+    this.run( timestamp + this.animationOffset )    
 
     window.requestAnimationFrame( this.onAnimationFrame )
   }
@@ -4403,14 +4404,14 @@ let Marker = {
     widget.style.verticalAlign = 'middle'
     widget.style.height = '1.1em'
     widget.style.width = '60px'
-    widget.style.backgroundColor = '#bbb'
+    widget.style.backgroundColor = 'transparent'
     widget.style.marginLeft = '.5em'
     widget.style.borderLeft = '1px solid #666'
     widget.style.borderRight = '1px solid #666'
     widget.setAttribute( 'width', 60 )
     widget.setAttribute( 'height', 13 )
-    widget.ctx.fillStyle = '#bbb'
-    widget.ctx.strokeStyle = '#333'
+    widget.ctx.fillStyle = 'rgba(46,50,53,1)'
+    widget.ctx.strokeStyle = '#eee'
     widget.ctx.lineWidth = .5
     widget.gen = Gibber.Gen.lastConnected
     widget.values = []
@@ -4706,7 +4707,7 @@ let Marker = {
 
   _addPatternFilter( patternObject ) {
     patternObject.filters.push( ( args ) => {
-      const wait = Utility.beatsToMs( patternObject.nextTime + .5,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
+      const wait = Utility.beatsToMs( patternObject.nextTime,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
 
       let idx = args[ 2 ],
           shouldUpdate = patternObject.update.shouldUpdate
