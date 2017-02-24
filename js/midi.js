@@ -162,13 +162,13 @@ const MIDI = {
     }
 
     if( Gibber.Scheduler.__sync__ === true ) {
-      if( msg.data[0] === 0xf2 ) {
+      if( msg.data[0] === 0xf2 ) { // stop
         MIDI.timestamps.length = 0
         MIDI.clockCount = 0
         MIDI.lastClockTime = null
-      } else if (msg.data[0] === 0xfa ) {
+      } else if (msg.data[0] === 0xfa ) { // play
         MIDI.running = true
-      } else if (msg.data[0] === 0xfc ) {
+      } else if (msg.data[0] === 0xfc ) { // pause
         MIDI.running = false
       } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
 
@@ -197,7 +197,9 @@ const MIDI = {
             MIDI.lastClockTime = msg.timeStamp
           }else{
             MIDI.lastClockTime = msg.timeStamp
+            Gibber.Scheduler.advanceBeat()
           }
+
           MIDI.clockCount++
         }    
       }
