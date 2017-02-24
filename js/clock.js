@@ -131,14 +131,14 @@ let Scheduler = {
   },
 
   advanceBeat() {
-    this.currentBeat = ( this.currentBeat++ ) % 4
+    this.currentBeat = ( ++this.currentBeat ) % 4
     this.seq( this.currentBeat )
   },
 
   seq( beat ) {
     beat = parseInt( beat )
 
-    if( beat === 1 ) {
+    if( beat === 0 ) {
       for( let func of Scheduler.functionsToExecute ) {
         try {
           func()

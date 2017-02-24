@@ -161,7 +161,7 @@ const MIDI = {
       //console.log( 'midi message:', msg.data[0], msg.data[1] )
     }
 
-    if( Gibber.Clock.__sync__ === true ) {
+    if( Gibber.Scheduler.__sync__ === true ) {
       if( msg.data[0] === 0xf2 ) {
         MIDI.timestamps.length = 0
         MIDI.clockCount = 0
