@@ -32,6 +32,7 @@ let Gibber = {
     window.Theory        = this.Theory
     window.Scale         = this.Theory.Scale.master
     window.channels      = this.MIDI.channels
+    window.Clock         = this.Scheduler
     
     Gibber.Gen.export( window )
 
@@ -57,10 +58,9 @@ let Gibber = {
       // AS LONG AS THIS DOESN'T RUN, NO ATTEMPT TO COMMUNICATE WITH LIVE IS MADE
       //this.Communication.init( Gibber ) 
       this.MIDI.init( Gibber )
+      this.Scheduler.run()
     }
 
-    //this.currentTrack = this.Track( this, 1 ) // TODO: how to determine actual "id" from Max?
-    
     this.initSingletons( window )
 
     this.export()

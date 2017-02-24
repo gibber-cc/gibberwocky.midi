@@ -40,7 +40,7 @@ let Environment = {
   },
   
   setupSplit() {
-    let splitDiv = document.querySelector( '#splitBar' ),
+    let splitDiv = document.querySelector( '#splitbar' ),
         editor   = document.querySelector( '#editor'   ),
         sidebar  = document.querySelector( '#sidebar'  ),
         mousemove, mouseup
@@ -57,6 +57,7 @@ let Environment = {
       sidebar.style.left = splitPos  + 'px'
       sidebar.style.width = (window.innerWidth - splitPos) + 'px'
     }
+
 
     splitDiv.addEventListener( 'mousedown', evt => {
       window.addEventListener( 'mousemove', mousemove )

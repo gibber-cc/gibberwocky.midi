@@ -2,6 +2,7 @@ const Queue = require( './priorityqueue.js' )
 const Big   = require( 'big.js' )
 
 let Scheduler = {
+  animationClock : require( './animationScheduler.js' ),
   phase: 0,
   msgs: [],
   delayed: [],
@@ -10,6 +11,11 @@ let Scheduler = {
   mockBeat: 0,
   mockInterval: null,
   currentBeat: 1,
+  currentTime: 0,
+  animationOffset:0,
+  animationClockInitialized: false,
+  lastBeat: 0,
+  __sync__:false,
 
   queue: new Queue( ( a, b ) => {
     if( a.time.eq( b.time ) ) {
@@ -19,11 +25,55 @@ let Scheduler = {
     }
   }),
 
+  sync( mode = 'internal' ) {
+    const tempSync = this.__sync__
+
+    this.__sync__ = mode === 'internal' ? false : true
+
+    if( this.__sync__ === false ) {
+      if( tempSync === true ) {
+        this.run()
+      }
+    }else{
+      if( tempSync === false ) {
+        this.animationClockInitialized = false
+      }
+    }
+
+  },
+
   mockRun() {
     let seqFunc = () => {
       this.seq( this.mockBeat++ % 8 )
     } 
     this.mockInterval = setInterval( seqFunc, 500 )
+  },
+
+  run() {
+    if( this.animationClockInitialized === false ) {
+      this.animationClock.add( this.animationClockCallback, 0 )
+    }
+  },
+
+  animationClockCallback( time ) {
+    if( this.animationClockInitialized === false ) {
+      this.animationOffset = this.lastBeat = time
+      this.animationClockInitialized = true
+    }
+    
+    this.beatCallback( time )
+  },
+
+  beatCallback( time ) {
+    const timeDiff = time - this.lastBeat
+    if( timeDiff >= 500 ) {
+      this.advanceBeat()
+      this.lastBeat = time - (timeDiff - 500) // preserve phase remainder
+    }
+
+    if( this.__sync__ === false ) {
+      this.animationClock.add( this.beatCallback, 1 )
+    }
   },
 
   // all ticks take the form of { time:timeInSamples, seq:obj }
@@ -37,11 +87,10 @@ let Scheduler = {
 
     if( this.queue.length && parseFloat( nextTick.time.toFixed(6) ) < end ) {
       beatOffset = nextTick.time.minus( this.phase ).div( advanceAmount )
-      
+
       // remove tick
       this.queue.pop()
 
-      
       this.currentTime = nextTick.time
 
       // execute callback function for tick passing schedule, time and beatOffset
@@ -74,7 +123,7 @@ let Scheduler = {
       if( Array.isArray( msg ) ) { // for chords etc.
         msg.forEach( Gibber.Communication.send )
       }else{
-        if( msg !== 0 ) { // XXX
+        if( msg !== 0 ) { // XXX why are we getting these zero msgs?
           Gibber.Communication.send( msg )
         }
       }
@@ -85,6 +134,7 @@ let Scheduler = {
     this.currentBeat = ( this.currentBeat++ ) % 4
     this.seq( this.currentBeat )
   },
+
   seq( beat ) {
     beat = parseInt( beat )
 
@@ -105,5 +155,8 @@ let Scheduler = {
   },
 
 }
+
+Scheduler.animationClockCallback = Scheduler.animationClockCallback.bind( Scheduler )
+Scheduler.beatCallback = Scheduler.beatCallback.bind( Scheduler )
 
 module.exports = Scheduler

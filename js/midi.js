@@ -160,46 +160,48 @@ const MIDI = {
     if( msg.data[0] !== 248 ) {
       //console.log( 'midi message:', msg.data[0], msg.data[1] )
     }
-    if( msg.data[0] === 0xf2 ) {
-      MIDI.timestamps.length = 0
-      MIDI.clockCount = 0
-      MIDI.lastClockTime = null
-    } else if (msg.data[0] === 0xfa ) {
-      MIDI.running = true
-    } else if (msg.data[0] === 0xfc ) {
-      MIDI.running = false
-    } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
 
-      if( MIDI.timestamps.length > 0 ) {
-        const diff = msg.timeStamp - MIDI.lastClockTime
-        MIDI.timestamps.unshift( diff )
-        while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
+    if( Gibber.Clock.__sync__ === true ) {
+      if( msg.data[0] === 0xf2 ) {
+        MIDI.timestamps.length = 0
+        MIDI.clockCount = 0
+        MIDI.lastClockTime = null
+      } else if (msg.data[0] === 0xfa ) {
+        MIDI.running = true
+      } else if (msg.data[0] === 0xfc ) {
+        MIDI.running = false
+      } else if( msg.data[0] === 248 && MIDI.running === true  ) { // MIDI beat clock
 
-        const sum = MIDI.timestamps.reduce( (a,b) => a+b )
-        const avg = sum / MIDI.timestamps.length
-
-        let bpm = (1000 / (avg * 24)) * 60
-        Gibber.Scheduler.bpm = bpm
- 
-        if( MIDI.clockCount++ === 23 ) {
-          Gibber.Scheduler.advanceBeat()
-          MIDI.clockCount = 0
-        }
-
-        MIDI.lastClockTime = msg.timeStamp
-        
-      }else{
-        if( MIDI.lastClockTime !== null ) {
+        if( MIDI.timestamps.length > 0 ) {
           const diff = msg.timeStamp - MIDI.lastClockTime
           MIDI.timestamps.unshift( diff )
-          MIDI.lastClockTime = msg.timeStamp
-        }else{
-          MIDI.lastClockTime = msg.timeStamp
-        }
-        MIDI.clockCount++
-      }    
-    }
+          while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
 
+          const sum = MIDI.timestamps.reduce( (a,b) => a+b )
+          const avg = sum / MIDI.timestamps.length
+
+          let bpm = (1000 / (avg * 24)) * 60
+          Gibber.Scheduler.bpm = bpm
+   
+          if( MIDI.clockCount++ === 23 ) {
+            Gibber.Scheduler.advanceBeat()
+            MIDI.clockCount = 0
+          }
+
+          MIDI.lastClockTime = msg.timeStamp
+          
+        }else{
+          if( MIDI.lastClockTime !== null ) {
+            const diff = msg.timeStamp - MIDI.lastClockTime
+            MIDI.timestamps.unshift( diff )
+            MIDI.lastClockTime = msg.timeStamp
+          }else{
+            MIDI.lastClockTime = msg.timeStamp
+          }
+          MIDI.clockCount++
+        }    
+      }
+    }
   },
   
   clear() { 

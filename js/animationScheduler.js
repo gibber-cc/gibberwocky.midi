@@ -26,7 +26,7 @@ let Scheduler = {
       this.queue.pop()
 
       try{
-        nextEvent.func()
+        nextEvent.func( nextEvent.time )
       }catch( e ) {
         Gibber.Environment.error( 'annotation error:', e.toString() )
       }
