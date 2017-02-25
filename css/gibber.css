@@ -4,7 +4,8 @@ body {
   font-family:Menlo, monospace;
   font-size:1em;
   background:rgba(46,50,53,1);
-  color:rgb( 153 ) !important
+  margin:0; padding:0;
+  color:rgb( 153 ) !important;
 }
 
 #editor {
@@ -27,7 +28,6 @@ body {
   font-size:1em
 }
 
-body { margin:0; padding:0 }
 
 .CodeMirror {
   font-family: 'Menlo','Source Code Pro', monospace;
@@ -92,10 +92,10 @@ span.cm-string {color: rgb(225, 225, 225) !important }
   padding:0 !important;
   box-sizing:border-box !important;
 }
-.annotation-right-border  { border-right-color:#fff   !important }
-.annotation-left-border   { border-left-color:#fff   !important }
-.annotation-top-border    { border-top-color:#fff     !important } 
-.annotation-bottom-border { border-bottom-color:#fff  !important }
+.annotation-right-border  { border-right-color:#000   !important }
+.annotation-left-border   { border-left-color:#000    !important }
+.annotation-top-border    { border-top-color:#000     !important } 
+.annotation-bottom-border { border-bottom-color:#000  !important }
 .annotation-no-left-border{ border-left-color:transparent  !important }
 .annotation-no-right-border{border-right-color:transparent !important }
 .annotation-no-horizontal-border { 
@@ -138,7 +138,7 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 #console { 
   width:100%;
   overflow:scroll;
-  height: calc( 100% - 3.5em );
+  height: calc( 100% - 4.5em );
   color:rgb( 153,153,153 ) !important; 
 }
 #sidebar {
@@ -147,7 +147,7 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 
 #lomView ul { padding: 0 }
 
-#demos ul { padding: 0; padding-left:10px; list-style:none; cursor:pointer }
+#demos ul { margin:0; padding: 0; list-style:none; cursor:pointer }
 
 #demos ul li { margin-bottom: 5px }
 
@@ -167,7 +167,8 @@ span.cm-string {color: rgb(225, 225, 225) !important }
   position:relative;
   left:5px;
   font-size: .8em;
-  padding-top:0
+  padding-top:0;
+  box-sizing:border
 }
 
 #console_list {
@@ -177,8 +178,8 @@ span.cm-string {color: rgb(225, 225, 225) !important }
   display: block;
   font-family: 'Menlo', 'Source Code Pro', monospace;
   list-style: none;
+  box-sizing:border;
   padding:0;
-  padding-left:5px;
 }
 
 #console_list li {
@@ -187,6 +188,11 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 
 .console_error {
   color:red;
+}
+
+.microlib_tabs_tab {
+  padding:1em;
+  padding-top:1.5em;
 }
 
 .microlib_tabs_nav_item {
