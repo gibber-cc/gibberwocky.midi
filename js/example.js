@@ -22,7 +22,7 @@ const Examples = {
 
 // Pick a MIDI channel to target. subsitute another number for 0 as needed
 // To run the line of code below, place your cursor on the line and hit Ctrl+Enter.
-channel = Gibber.MIDI.channels[0]
+channel = channels[0]
 
 // play a note identified by name
 channel.note( 'c4' ) // ... or d4, fb2, e#5 etc.
@@ -127,112 +127,53 @@ channel.note[ 1 ].stop()
 // start this.note[0]
 channel.note[ 1 ].start()`,
 
-['sequencing parameter changes']: `/* Almost every parameter in Ableton can be sequenced and controlled
-using gibberwocky. Because there are hundreds (and often thousands) of paramters exposed
-for control in any given Live set, gibberwocky provides a more organized way to search
-them. In the gibberwocky interface, go to the sidebar and click on the 'lom' tab. 
-LOM is short for 'Live Object Model', and this tab will show you a tree graph 
-representation of all the channels / devices / parameters that are exposed
-for control in Live. Click on any of the small triangles next to the channels / devices to
-expand or collapse the view for a particular node in the treeview graph.
-
-Explore the tree graph a little bit. When you find a parameter that you'd like to control, click on
-it in the treeview and then drag it into gibberwocky's code editor. This will copy and paste the
-path to the particular parameter you selected for control into the editor, making it easy to start
-sequencing. Unfortunately, it's tricky to enter these paths without usign the treeview (at least at
-first), but this is because a typical Ableton session has hundreds and hundreds (if not thousands) of
-parameters exposed for control.
-
-Let's say you had an Impulse using the 606 preset on Track 1, and you dragged the 'Global Time'
-parameter into the window. You should see something like the following:*/
-
-channels['1-Impulse 606'].devices['Impulse']['Global Time']
-
-/*That string of code actually points to a function. If we pass it a value between 0-1, we can 
-change the value of the time parameter in our Impulse:*/
-
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( .15 ) // low value
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( .95 ) // high value
-
-/* After running either of the above two lines of code (by placing your cursor on it and hitting
-ctrl+enter) you should see the time value change in your Impulse. Great! Now we can control it
-with sequencing as well, using syntax almost identical to what you have previously
-explored to sequence note, velocity, and duration messages (at least what you've hopefully
-explored... if not, check out the corresponding demos). Below is a line of code that
-incremenets the time parameter by .25 every 1/2 note... it loops back to 0 after reaching 1.*/
-
-channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( [0, .25, .5, .75, 1], 1/2 )
-
-// We can do the same pattern transforms on our values that we can do with note/veloctiy/duration 
-// sequences. We can also sequence randomly:
-
-channels['1-Impulse 606'].devices['Impulse']['Global Time'].seq( Rndf(), 1/16 )
-
-/* Equally as powerful as sequencing is modulating these parameters using gen~ expressions. See
-the corresponding tutorial for more details about this.*/ `,
-
-['modulating with gen~'] : `/* gen~ is an extension for Max4Live for synthesizing audio/video signals.
-In gibberwocky, we can use gen~ to create complex modulation systems that run at audio rate
-and with a much higher resolution than MIDI; there are 4294967296 possible values for gen~
-signals vs 127 for MIDI. This is a huge improvement, especially for controlling frequencies and
-other parameters that provide large sweeps of range. In the context of gibberwocky, think of
-gen~ graphs as analog(ish) modular patchbays that you can use to control almost any parameter in Live.
+['modulating with genish.js'] : `/* gen~ is an extension for Max for Live for synthesizing audio/video signals.
+In gibberwocky.midi, we can use a JavaScript port of gen~, genish.js to create complex modulation graphs outputting
+CC messages. LFOs, ramps, stochastic signals... genish can create a wide variety of modulation sources for
+exploration.
 
 As we saw in the paramter sequencing tutorial (look at that now if you haven't yet, or you'll be a
-bit lost here), most ugens from gen~ are available for scripting in gibberwocky. In the gibberwocky interface,
-go to the sidebar, click on the 'lom' tab, and drag a parameter into the editor that you'd like to
-modulate. For purposes of this tutorial, we'll assume we're modulating the same parameter from the
-parameter sequencing tutorial: the Global Time of an Impulse device on the first channel in the Live set.
+bit lost here), most ugens from genish.js are available for scripting in gibberwocky.
+Perhaps the most basic modulation is a simple ramp. In your target application / MIDI hardware device setup
+a synthesis parameter to be controlled by CC0. To send a repeating ramp to signal to CC0 on channel 0 we
+would use:*/
 
-Perhaps the most basic modulation is a simple ramp. Remember that all Live parameters accepts values
-between {0,1}; this happens to be what the phasor() ugen outputs at a argument frequency. For example,
-to fade our Global Time parameter from its minimum to its maximum value once every second we would use:*/
+channels[0].cc0( phasor( 1 ) )
 
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( phasor( 1 ) )
+This ramp repeats regularly at 1 Hz. All graphs in genish.js typically output to a range of {-1,1} (or sometimes {0,1}),
+however, for MIDI we want to ensure that we have an output signal in the range of {0,127}. Thus, by default, the {-1,1}
+signal will automatically be transformed to {0,127}. You can turn this off by passing a value of false as the second
+paramter to the CC function. The example below is designed to automatically travel between 32 and 96, so we pass false
+to ensure that no additional transformation is applied:*/
 
-/* Execute the above line to see it in action. A related ugen is beat(), which creates a ramp over an
-argument number of beats, making it easy to create tempo-synced modulation graphs. If we wanted to scale 
-our phasor() from {.25,.75} we would use slightly more complex graph:*/
-
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( 
+channels[0].cc0( 
   add( 
-    .25,
-    div( phasor( 1 ), 2 )
-  )
+    32, 
+    mul(  
+      64, 
+      phasor( 1 ) 
+    ) 
+  ), 
+  false 
 )
 
-/* The above graph divides our phasor in half, giving us a signal between {0,.5}, and then adds .25 to
-this to give us our final signal. Another common ugen used for modulation is the sine oscillator; in
+/* Another common ugen used for modulation is the sine oscillator; in
 gen~ this is the cycle() ugen. The cycle() accepts one parameter, the frequency that it operates at.
 So we can do the following:*/
 
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( cycle( .5 ) )
+channels[0].cc0( cycle( .5 ) )
 
-/* However, you'll notice that there's a problem if you run the above line of code: the parameter
-spends half of each oscillation at its minimum value. This is because cycle() returns a value between
-{-1,1} instead of {0,1}, and whenever a value travels below 0 it is clamped. So, in order to use
-cycle() we need to scale and offset its output the same way we did with our phasor() example:*/
+/* Often times we want to specify a center point (bias) for our sine oscillator, in addition to 
+a specific amplitude and frequency. The lfo() function provides a simpler syntax for doing this:*/
 
-channels['1-Impulse 606'].devices['Impulse']['Global Time'](  
-  add(
-    .5,  
-    div( cycle( .5 ), 2 )
-  )
-)
+// frequency, amplitude, bias
+channel[0].cc0( lfo( 2, .1, .7 ) )
 
-/* The above example will oscillate between {0,1} with .5 being the center point. Creating these
-scalars and offsets is tedious enough that gibberwocky provides a lfo() ugen to take care of this
-for you; this ugen is not found in the standard gen~ library (although, as we've seen above, it's
-simple enough to make). lfo() accepts three parameters: frequency, amplitude, and center. For example,
-to create a lfo that moves between {.6, .8} at 2Hz we would use:*/
-
-mylfo = lfo( 2, .1, .7 )
-
-// We can also easily sequence parameters of our LFO:
+// We can also easily sequence parameters of our LFO XXX CURRENTLY BROKEN:
 
 mylfo.frequency.seq( [ .5,1,2,4 ], 2 )
 
-/* ... as well as sequence any other parameter in Live controlled by a gen~ graph. Although the lfo()
+/* ... as well as sequence any other parameter in Live controlled by a genish.js graph. Although the lfo()
 ugen provides named properties for controlling frequency, amplitude, and centroid, there is a more
 generic way to sequence any aspect of a gen~ ugen by using the index operator ( [] ). For example,
 cycle() contains a single inlet that controls its frequency, to sequence it we would use: */
@@ -241,9 +182,9 @@ mycycle = cycle( .25 )
 
 mycycle[ 0 ].seq( [ .25, 1, 2 ], 1 )
 
-channels['1-Impulse 606'].devices['Impulse']['Global Time']( add( .5, div( mycycle, 2 ) ) )
+channels[0].cc0( add( .5, div( mycycle, 2 ) ) )
 
-/*For other ugens that have more than one argument (see the gen~ random tutorial for an example) we
+/*For other ugens that have more than one argument (see the genish.js random tutorial for an example) we
 simply indicate the appropriate index... for example, mysah[ 1 ] etc.*/`,
 
 [ 'using the Score() object' ]  : `// Scores are lists of functions with associated
@@ -269,8 +210,7 @@ s = Score([
 
 s.stop()
 
-// scores become much terser using arrow functions
-// (note: Safari does not currently support arrow functions, except in betas)
+// scores become much terser using the arrow functions recently added to JS
 
 s = Score([
   0, ()=> channels[1].note.seq( [0,1,2,3], 1/4 ),

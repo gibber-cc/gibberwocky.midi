@@ -722,8 +722,9 @@ let Marker = {
   functions:{
     Score( node, cm, channel, objectName, vOffset=0 ) {
       let timelineNodes = node.arguments[ 0 ].elements
+      const score = window[ objectName ]
       //console.log( timelineNodes )
-      channel.markup.textMarkers[ 'score' ] = []
+      score.markup.textMarkers[ 'score' ] = []
 
       for( let i = 0; i < timelineNodes.length; i+=2 ) {
         let timeNode = timelineNodes[ i ],
@@ -735,14 +736,14 @@ let Marker = {
         functionNode.loc.end.ch = functionNode.loc.end.column
 
         let marker = cm.markText( functionNode.loc.start, functionNode.loc.end, { className:`score${i/2}` } )
-        channel.markup.textMarkers[ 'score' ][ i/2 ] = marker
+        score.markup.textMarkers[ 'score' ][ i/2 ] = marker
 
       }
 
       let lastClass = 'score0'
       $( '.' + lastClass ).add( 'scoreCurrentIndex' )
-      // TODO: global object usage is baaaad methinks?
-      window[ objectName ].onadvance = ( idx ) => {
+
+      score.onadvance = ( idx ) => {
         $( '.' + lastClass ).remove( 'scoreCurrentIndex' )
         lastClass = `score${idx}`
         $( '.' + lastClass ).add( 'scoreCurrentIndex' ) 
