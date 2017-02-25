@@ -27,9 +27,15 @@ let Environment = {
     this.setupSplit()
     this.sidebar = document.querySelector( '#sidebar' )
     this.sidebar.isVisible = 1
-    //this.lomView.init( Gibber )
+
     this.animationScheduler.init()
     this.editorWidth = document.querySelector( '#editor' ).style.width
+
+    document.querySelector( '#clockSyncRadio' )
+      .addEventListener( 'click', Gibber.Scheduler.sync.bind( Gibber.Scheduler, 'external' ) )
+
+    document.querySelector( '#internalSyncRadio' )
+      .addEventListener( 'click', Gibber.Scheduler.sync.bind( Gibber.Scheduler, 'internal' ) )
   },
 
   createSidePanel() {
@@ -181,7 +187,7 @@ let Environment = {
         markupFunction.origin  = func
 
         if( !Environment.debug ) {
-          Gibber.Scheduler.functionsToExecute.push( func );
+          Gibber.Scheduler.functionsToExecute.push( func )
           Gibber.Scheduler.functionsToExecute.push( markupFunction  )
         }else{
           func()

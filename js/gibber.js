@@ -51,6 +51,8 @@ let Gibber = {
 
     this.log = this.Environment.log
 
+    this.Scheduler.init()
+
     if( this.Environment.debug ) {
       this.Scheduler.mockRun()
       

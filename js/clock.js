@@ -40,6 +40,20 @@ let Scheduler = {
       }
     }
 
+    localStorage.setItem( 'midi.sync', mode )
+  },
+
+  init() {
+    const sync = localStorage.getItem( 'midi.sync' )
+
+    if( sync !== null && sync !== undefined ) { 
+      this.sync( sync )
+      if( sync === 'internal' ) {
+        document.querySelector('#internalSyncRadio').setAttribute( 'checked', true )  
+      }else{
+        document.querySelector('#clockSyncRadio').setAttribute( 'checked', true )  
+      }
+    }
   },
 
   mockRun() {

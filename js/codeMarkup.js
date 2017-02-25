@@ -7,14 +7,14 @@ const callDepths = [
   'THIS.METHOD[ 0 ].SEQ',
   'THIS.METHOD.VALUES.REVERSE.SEQ',
   'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ',
-  'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ',  
-  'TRACKS[0].METHOD.SEQ',
-  'TRACKS[0].METHOD[0].SEQ',
-  'TRACKS[0].METHOD.VALUES.REVERSE.SEQ',
-  'TRACKS[0].METHOD[0].VALUES.REVERSE.SEQ'
+  'CHANNELS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ',  
+  'CHANNELS[0].METHOD.SEQ',
+  'CHANNELS[0].METHOD[0].SEQ',
+  'CHANNELS[0].METHOD.VALUES.REVERSE.SEQ',
+  'CHANNELS[0].METHOD[0].VALUES.REVERSE.SEQ'
 ]
 
-const trackNames = [ 'this', 'tracks', 'master', 'returns' ]
+const channelNames = [ 'this', 'channels', 'master', 'returns' ]
 
 const Utility = require( './utility.js' )
 const $ = Utility.create
@@ -30,7 +30,7 @@ let Marker = {
     }  
   },
 
-  process( code, position, codemirror, track ) {
+  process( code, position, codemirror, channel ) {
     let shouldParse = code.includes( '.seq' ) || code.includes( 'Steps(' ) || code.includes( 'Score(' ),
         isGen = false
 
@@ -66,9 +66,9 @@ let Marker = {
         node.horizontalOffset = position.horizontalOffset === undefined ? 0 : position.horizontalOffset
         try {
           if( isGen ) {
-            this.processGen( node, codemirror, track )
+            this.processGen( node, codemirror, channel )
           }else{ 
-            this._process[ node.type ]( node, codemirror, track )
+            this._process[ node.type ]( node, codemirror, channel )
           }
         } catch( error ) {
           console.log( 'error processing annotation for', node.expression.type, error )
@@ -77,7 +77,7 @@ let Marker = {
     }
   },
   
-  processGen( node, cm, track ) {
+  processGen( node, cm, channel ) {
     let ch = node.end, line = node.verticalOffset, start = ch - 1, end = node.end 
     
     cm.replaceRange( ') ', { line, ch:start }, { line, ch } )
@@ -152,17 +152,17 @@ let Marker = {
   },
 
   _process: {
-    ExpressionStatement( expressionNode, codemirror, track ){ 
-      Marker._process[ expressionNode.expression.type ]( expressionNode, codemirror, track )
+    ExpressionStatement( expressionNode, codemirror, channel ){ 
+      Marker._process[ expressionNode.expression.type ]( expressionNode, codemirror, channel )
     },
 
-    AssignmentExpression: function( expressionNode, codemirror, track ) {
+    AssignmentExpression: function( expressionNode, codemirror, channel ) {
       if( expressionNode.expression.right.type !== 'Literal' && Marker.functions[ expressionNode.expression.right.callee.name ] ) {
 
         Marker.functions[ expressionNode.expression.right.callee.name ]( 
           expressionNode.expression.right, 
           codemirror,
-          track,
+          channel,
           expressionNode.expression.left.name,
           expressionNode.verticalOffset,
           expressionNode.horizontalOffset
@@ -171,7 +171,7 @@ let Marker = {
 
     },
 
-    CallExpression( expressionNode, codemirror, track  ) {
+    CallExpression( expressionNode, codemirror, channel  ) {
       let [ components, depthOfCall, index ] = Marker._getCallExpressionHierarchy( expressionNode.expression ),
         args = expressionNode.expression.arguments,
         usesThis, targetPattern, isTrack, method, target
@@ -181,12 +181,12 @@ let Marker = {
       
       //console.log( "depth of call", depthOfCall, components, index )
       let valuesPattern, timingsPattern, valuesNode, timingsNode
-
+      
       switch( callDepths[ depthOfCall ] ) {
          case 'SCORE':
            //console.log( 'score no assignment?', components, expressionNode.expression )
            if( Marker.functions[ expressionNode.expression.callee.name ] ) {
-             Marker.functions[ expressionNode.expression.callee.name ]( expressionNode.expression, codemirror, track, expressionNode.verticalOffset )            
+             Marker.functions[ expressionNode.expression.callee.name ]( expressionNode.expression, codemirror, channel, expressionNode.verticalOffset )            
            }
            break;
 
@@ -194,22 +194,22 @@ let Marker = {
            break;
 
          case 'THIS.METHOD.SEQ':
-           if( components.includes( 'tracks' ) ) { //expressionNode.expression.callee.object.object.type !== 'ThisExpression' ) {
+           if( components.includes( 'channels' ) ) { //expressionNode.expression.callee.object.object.type !== 'ThisExpression' ) {
              let objName = expressionNode.expression.callee.object.object.name
 
-             track = window[ objName ]
-             method = track[ components[ 1 ] ][ index ]
+             channel = window[ objName ]
+             method = channel[ components[ 1 ] ][ index ]
            }else if( components.includes( 'this' ) ){
-             track = Gibber.currentTrack
-             method = track[ components[ 1 ] ][ index ]
+             channel = Gibber.currentTrack
+             method = channel[ components[ 1 ] ][ index ]
            }else{
              let objName = expressionNode.expression.callee.object.object.name
 
-             track = window[ components[0] ]
-             method = track[ components[ 1 ] ] 
+             channel = window[ components[0] ]
+             method = channel[ components[ 1 ] ] 
            }
 
-           if( !track.markup ) { Marker.prepareObject( track ) }
+           if( !channel.markup ) { Marker.prepareObject( channel ) }
 
            valuesPattern =  method.values
            timingsPattern = method.timings
@@ -219,52 +219,53 @@ let Marker = {
            valuesPattern.codemirror = timingsPattern.codemirror = codemirror 
           
            if( valuesNode ) {
-             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, channel, index, 'values', valuesPattern ) 
            }  
            if( timingsNode ) {
-             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, channel, index, 'timings', timingsPattern )  
            }
 
            break;
 
          case 'THIS.METHOD[ 0 ].SEQ': // will this ever happen??? I guess after it has been sequenced once?
-           isTrack  = trackNames.includes( components[0] )
+           isTrack  = channelNames.includes( components[0] )
            target = null
-           track = window[ components[0] ][ components[1] ]
-           
-           if( !isTrack ) { // not a track! XXX please, please get a better parsing method / rules...
-             target = track
-             track = Gibber.currentTrack
-           }
 
-           valuesPattern =  target === null ? track[ components[2] ][ index ].values : target[ components[2] ].values
-           timingsPattern = target === null ? track[ components[2] ][ index ].timings : target[ components[2] ].timings //track[ components[2] ][ index ].timings
+           channel = window[ components[0] ][ components[1] ]
+           
+           //if( !isTrack ) { // not a channel! XXX please, please get a better parsing method / rules...
+           //  target = channel
+           //  channel = Gibber.currentTrack
+           //}
+
+           valuesPattern =  target === null ? channel[ components[2] ][ index ].values : target[ components[2] ].values
+           timingsPattern = target === null ? channel[ components[2] ][ index ].timings : target[ components[2] ].timings //channel[ components[2] ][ index ].timings
            valuesNode = args[0]
            timingsNode = args[1]
 
            valuesPattern.codemirror = timingsPattern.codemirror = codemirror
 
            if( valuesNode ) { 
-             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, channel, index, 'values', valuesPattern ) 
            }
            if( timingsNode ) {
-             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, channel, index, 'timings', timingsPattern )  
            }
 
            break;
 
          case 'THIS.METHOD.VALUES.REVERSE.SEQ':
            usesThis = components.includes( 'this' )
-           isTrack  = components.includes( 'tracks' )
+           isTrack  = components.includes( 'channels' )
 
            if( isTrack ) { // XXX this won't ever get called here, right?
-             track = window[ components[0] ][ components[1] ] 
-             targetPattern = track[ components[2] ][ components[3] ]
+             channel = window[ components[0] ][ components[1] ] 
+             targetPattern = channel[ components[2] ][ components[3] ]
              method = targetPattern[ components[4] ]
 
            }else{
-             track = usesThis ? Gibber.currentTrack : window[ components[0] ],
-             targetPattern = track[ components[1] ][ components[2] ],
+             channel = usesThis ? Gibber.currentTrack : window[ components[0] ],
+             targetPattern = channel[ components[1] ][ components[2] ],
              method = targetPattern[ components[3] ]
            }
         
@@ -277,27 +278,27 @@ let Marker = {
            valuesPattern.codemirror = timingsPattern.codemirror = codemirror
            
            if( valuesNode ) {
-             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, channel, index, 'values', valuesPattern ) 
            }  
            if( timingsNode ) {
-             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, channel, index, 'timings', timingsPattern )  
            }
 
            break;
 
          case 'THIS.METHOD[ 0 ].VALUES.REVERSE.SEQ': // most useful?
            usesThis = components.includes( 'this' )
-           isTrack  = components.includes( 'tracks' )
-           // tracks['1-Impulse 606'].devices['Impulse']['Global Time']
+           isTrack  = components.includes( 'channels' )
+           // channels['1-Impulse 606'].devices['Impulse']['Global Time']
            
            if( isTrack ) {
-             track = window[ components[0] ][ components[1] ] 
-             targetPattern = track[ components[2] ][ components[3] ]
+             channel = window[ components[0] ][ components[1] ] 
+             targetPattern = channel[ components[2] ][ components[3] ]
              method = targetPattern[ components[4] ]
 
            }else{
-             track = usesThis ? Gibber.currentTrack : window[ components[0] ],
-             targetPattern = track[ components[1] ][ index ][ components[3] ],
+             channel = usesThis ? Gibber.currentTrack : window[ components[0] ],
+             targetPattern = channel[ components[1] ][ index ][ components[3] ],
              method = targetPattern[ components[4] ]
            }
 
@@ -311,28 +312,28 @@ let Marker = {
            if( !isTrack ) components.splice( 2,index )
           
            if( valuesNode ) {
-             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, channel, index, 'values', valuesPattern ) 
            }
            if( timingsNode ) {
-             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, channel, index, 'timings', timingsPattern )  
            }
            break;
-         case 'TRACKS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ':
-           track = window[ 'tracks' ][ components[ 1 ] ]
+         case 'CHANNELS[0].METHOD[ 0 ].VALUES.REVERSE.SEQ':
+           channel = window[ 'channels' ][ components[ 1 ] ]
 
            components[3] = components[3]
-           valuesPattern =  track[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].values
-           timingsPattern = track[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].timings
+           valuesPattern =  channel[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].values
+           timingsPattern = channel[ components[ 2 ] ][ components[3] ][ components[4] ][ components[5] ].timings
            valuesNode = args[ 0 ]
            timingsNode= args[ 1 ]
           
            valuesPattern.codemirror = timingsPattern.codemirror = codemirror
 
            if( valuesNode ) {
-             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, track, index, 'values', valuesPattern ) 
+             Marker._markPattern[ valuesNode.type ]( valuesNode, expressionNode, components, codemirror, channel, index, 'values', valuesPattern ) 
            }  
            if( timingsNode ) {
-             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, track, index, 'timings', timingsPattern )  
+             Marker._markPattern[ timingsNode.type ]( timingsNode, expressionNode, components, codemirror, channel, index, 'timings', timingsPattern )  
            }
            break;
 
@@ -406,7 +407,7 @@ let Marker = {
   },
 
   _markPattern: {
-    Literal( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+    Literal( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
        let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
            cssName = className + '_0',
            marker = cm.markText( start, end, { 
@@ -415,20 +416,20 @@ let Marker = {
              inclusiveRight: true
            })
        
-       track.markup.textMarkers[ className ] = marker
+       channel.markup.textMarkers[ className ] = marker
        
-       if( track.markup.cssClasses[ className ] === undefined ) track.markup.cssClasses[ className ] = []
+       if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
 
-       track.markup.cssClasses[ className ][ index ] = cssName    
+       channel.markup.cssClasses[ className ][ index ] = cssName    
        
        Marker._addPatternUpdates( patternObject, className )
        Marker._addPatternFilter( patternObject )
        
        patternObject.patternName = className
-       patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, track ) }
+       patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
     },
 
-    BinaryExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
+    BinaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
        let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
            cssName = className + '_0',
            marker = cm.markText(
@@ -443,10 +444,10 @@ let Marker = {
              }
            ) 
        
-       track.markup.textMarkers[ className ] = marker
+       channel.markup.textMarkers[ className ] = marker
        
-       if( track.markup.cssClasses[ className ] === undefined ) track.markup.cssClasses[ className ] = []
-       track.markup.cssClasses[ className ][ index ] = cssName
+       if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
+       channel.markup.cssClasses[ className ][ index ] = cssName
 
        setTimeout( () => { $( '.' + cssName )[ 1 ].classList.add( 'annotation-no-horizontal-border' ) }, 250 )
        
@@ -456,7 +457,7 @@ let Marker = {
        Marker._addPatternFilter( patternObject )
     },
 
-    ArrayExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+    ArrayExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
       let [ patternName, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
           marker, 
           count = 0
@@ -499,11 +500,11 @@ let Marker = {
           } )
         }
 
-        if( track.markup.textMarkers[ patternName  ] === undefined ) track.markup.textMarkers[ patternName ] = []
-        track.markup.textMarkers[ patternName ][ count ] = marker
+        if( channel.markup.textMarkers[ patternName  ] === undefined ) channel.markup.textMarkers[ patternName ] = []
+        channel.markup.textMarkers[ patternName ][ count ] = marker
        
-        if( track.markup.cssClasses[ patternName ] === undefined ) track.markup.cssClasses[ patternName ] = []
-        track.markup.cssClasses[ patternName ][ count ] = cssClassName 
+        if( channel.markup.cssClasses[ patternName ] === undefined ) channel.markup.cssClasses[ patternName ] = []
+        channel.markup.cssClasses[ patternName ][ count ] = cssClassName 
         
         count++
       }
@@ -539,12 +540,12 @@ let Marker = {
       }
 
       Marker._addPatternFilter( patternObject )
-      patternObject._onchange = () => { Marker._updatePatternContents( patternObject, patternName, track ) }
+      patternObject._onchange = () => { Marker._updatePatternContents( patternObject, patternName, channel ) }
     },
 
     // CallExpression denotes an array (or other object) that calls a method, like .rnd()
     // could also represent an anonymous function call, like Rndi(19,40)
-    CallExpression( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+    CallExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
       var args = Array.prototype.slice.call( arguments, 0 )
       // console.log( patternNode.callee.type, patternObject )
 
@@ -558,7 +559,7 @@ let Marker = {
       }
     },
 
-    Identifier( patternNode, containerNode, components, cm, track, index=0, patternType, patternObject ) {
+    Identifier( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
       // mark up anonymous functions with comments here... 
       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
           commentStart = end,
@@ -571,14 +572,14 @@ let Marker = {
 
       marker = cm.markText( commentStart, commentEnd, { className })
        
-      //  if( track.markup.textMarkers[ className  ] === undefined ) track.markup.textMarkers[ className ] = []
-      //  track.markup.textMarkers[ className ][ 0 ] = marker
+      //  if( channel.markup.textMarkers[ className  ] === undefined ) channel.markup.textMarkers[ className ] = []
+      //  channel.markup.textMarkers[ className ][ 0 ] = marker
       //  console.log( 'name', patternNode.callee.name )
       let updateName = typeof patternNode.callee !== 'undefined' ? patternNode.callee.name : patternNode.name 
       if( Marker.patternUpdates[ updateName ] ) {
-        patternObject.update = Marker.patternUpdates[ updateName ]( patternObject, marker, className, cm, track )
+        patternObject.update = Marker.patternUpdates[ updateName ]( patternObject, marker, className, cm, channel )
       } else {
-        patternObject.update = Marker.patternUpdates.anonymousFunction( patternObject, marker, className, cm, track )
+        patternObject.update = Marker.patternUpdates.anonymousFunction( patternObject, marker, className, cm, channel )
       }
       
       patternObject.patternName = className
@@ -590,7 +591,7 @@ let Marker = {
   },
 
   patternUpdates: {
-    Euclid: ( patternObject, marker, className, cm, track ) => {
+    Euclid: ( patternObject, marker, className, cm, channel ) => {
       let val ='/* ' + patternObject.values.join('')  + ' */',
           pos = marker.find(),
           end = Object.assign( {}, pos.to ),
@@ -608,14 +609,14 @@ let Marker = {
 
       patternObject.commentMarker = cm.markText( pos.from, end, { className, atomic:true }) //replacedWith:element })
 
-      track.markup.textMarkers[ className ] = {}
+      channel.markup.textMarkers[ className ] = {}
       
       let mark = () => {
         memberAnnotationStart.ch = annotationStartCh
         memberAnnotationEnd.ch   = annotationEndCh
 
         for( let i = 0; i < patternObject.values.length; i++ ) {
-          track.markup.textMarkers[ className ][ i ] = cm.markText(
+          channel.markup.textMarkers[ className ][ i ] = cm.markText(
             memberAnnotationStart,  memberAnnotationEnd,
             { 'className': `${className}_${i}` }
           )
@@ -660,7 +661,7 @@ let Marker = {
         Gibber.Environment.animationScheduler.add( () => {
           for( let i = 0; i < patternObject.values.length; i++ ) {
    
-            let markerCh = track.markup.textMarkers[ className ][ i ],
+            let markerCh = channel.markup.textMarkers[ className ][ i ],
                 pos = markerCh.find()
             
             marker.doc.replaceRange( '' + patternObject.values[ i ], pos.from, pos.to )
@@ -719,10 +720,10 @@ let Marker = {
   },
 
   functions:{
-    Score( node, cm, track, objectName, vOffset=0 ) {
+    Score( node, cm, channel, objectName, vOffset=0 ) {
       let timelineNodes = node.arguments[ 0 ].elements
       //console.log( timelineNodes )
-      track.markup.textMarkers[ 'score' ] = []
+      channel.markup.textMarkers[ 'score' ] = []
 
       for( let i = 0; i < timelineNodes.length; i+=2 ) {
         let timeNode = timelineNodes[ i ],
@@ -734,7 +735,7 @@ let Marker = {
         functionNode.loc.end.ch = functionNode.loc.end.column
 
         let marker = cm.markText( functionNode.loc.start, functionNode.loc.end, { className:`score${i/2}` } )
-        track.markup.textMarkers[ 'score' ][ i/2 ] = marker
+        channel.markup.textMarkers[ 'score' ][ i/2 ] = marker
 
       }
 
@@ -748,13 +749,13 @@ let Marker = {
       }
     },
 
-    Steps( node, cm, track, objectName, vOffset=0 ) {
+    Steps( node, cm, channel, objectName, vOffset=0 ) {
       let steps = node.arguments[ 0 ].properties
 
-      track.markup.textMarkers[ 'step' ] = []
-      track.markup.textMarkers[ 'step' ].children = []
+      channel.markup.textMarkers[ 'step' ] = []
+      channel.markup.textMarkers[ 'step' ].children = []
 
-      let mark = ( _step, _key, _cm, _track ) => {
+      let mark = ( _step, _key, _cm, _channel ) => {
         for( let i = 0; i < _step.value.length; i++ ) {
           let pos = { loc:{ start:{}, end:{}} }
           Object.assign( pos.loc.start, _step.loc.start )
@@ -762,7 +763,7 @@ let Marker = {
           pos.loc.start.ch += i
           pos.loc.end.ch = pos.loc.start.ch + 1
           let posMark = _cm.markText( pos.loc.start, pos.loc.end, { className:`step_${_key}_${i}` })
-          _track.markup.textMarkers.step[ _key ].pattern[ i ] = posMark
+          _channel.markup.textMarkers.step[ _key ].pattern[ i ] = posMark
         }
       }
 
@@ -776,11 +777,11 @@ let Marker = {
           step.loc.end.ch     = step.loc.end.column - 1
           
           let marker = cm.markText( step.loc.start, step.loc.end, { className:`step${key}` } )
-          track.markup.textMarkers.step[ key ] = marker
+          channel.markup.textMarkers.step[ key ] = marker
 
-          track.markup.textMarkers.step[ key ].pattern = []
+          channel.markup.textMarkers.step[ key ].pattern = []
           
-          mark( step, key, cm, track )
+          mark( step, key, cm, channel )
 
           let count = 0, span, update,
               _key = steps[ key ].key.value,
@@ -810,7 +811,7 @@ let Marker = {
             let delay = Utility.beatsToMs( 1,  Gibber.Scheduler.bpm )
             Gibber.Environment.animationScheduler.add( () => {
               marker.doc.replaceRange( patternObject.values.join(''), step.loc.start, step.loc.end )
-              mark( step, key, cm, track )
+              mark( step, key, cm, channel )
             }, delay ) 
           }
 
@@ -825,25 +826,25 @@ let Marker = {
   },
 
 
-  _updatePatternContents( pattern, patternClassName, track ) {
+  _updatePatternContents( pattern, patternClassName, channel ) {
     let marker, pos, newMarker
 
     if( pattern.values.length > 1 ) {
       // array of values
       for( let i = 0; i < pattern.values.length; i++) {
-        marker = track.markup.textMarkers[ patternClassName ][ i ]
+        marker = channel.markup.textMarkers[ patternClassName ][ i ]
         pos = marker.find()
 
         marker.doc.replaceRange( '' + pattern.values[ i ], pos.from, pos.to )
       }
     }else{
       // single literal
-      marker = track.markup.textMarkers[ patternClassName ]
+      marker = channel.markup.textMarkers[ patternClassName ]
       pos = marker.find()
 
       marker.doc.replaceRange( '' + pattern.values[ 0 ], pos.from, pos.to )
       // newMarker = marker.doc.markText( pos.from, pos.to, { className: patternClassName + ' annotation-border' } )
-      // track.markup.textMarkers[ patternClassName ] = newMarker
+      // channel.markup.textMarkers[ patternClassName ] = newMarker
     }
   },
 
@@ -856,8 +857,8 @@ let Marker = {
 
      if( className.includes( 'this' ) ) className.shift()
 
-     if( className.includes( 'tracks' ) ) {
-       //className = [ 'tracks', components[1] ].concat( components.slice( 2, components.length - 1 ) )
+     if( className.includes( 'channels' ) ) {
+       //className = [ 'channels', components[1] ].concat( components.slice( 2, components.length - 1 ) )
        if( index !== 0 ) {
          className.splice( 3, 0, index )
        }
@@ -904,8 +905,8 @@ let Marker = {
       }else if( obj.property && obj.property.type === 'Literal' ){ // array index
         pushValue = obj.property.value
 
-        // don't fall for tracks[0] etc.
-        if( depth > 1 ) index = obj.property.value
+        // don't fall for channels[0] etc.
+        // if( depth > 1 ) index = obj.property.value
       }else if( obj.type === 'Identifier' ) {
         pushValue = obj.name
       }
