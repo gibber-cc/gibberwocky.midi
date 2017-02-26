@@ -28,7 +28,7 @@ let Scheduler = {
       try{
         nextEvent.func( nextEvent.time )
       }catch( e ) {
-        Gibber.Environment.error( 'annotation error:', e.toString() )
+        console.error( 'annotation error:', e.toString() )
       }
       // call recursively
       this.run( timestamp  )

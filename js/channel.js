@@ -16,7 +16,7 @@ let Channel = {
       
       },
 
-      __velocity: 127,
+      __velocity: 64,
       __duration: 1000,
       
       note( num, offset=null, doNotConvert=false ){
@@ -27,7 +27,10 @@ let Channel = {
 
         Gibber.MIDI.send( msg, baseTime )
         msg[0] = 0x80 + channel.number
-        Gibber.MIDI.send( msg, baseTime + channel.__duration )
+
+        // subtract 1 from noteoff to avoid overlapping with noteon messages
+        // when sequencing notes that are exactly 1 * duration apart
+        Gibber.MIDI.send( msg, baseTime + channel.__duration - 1 )
       },
 
       midinote( num, offset=null ) {
@@ -36,7 +39,7 @@ let Channel = {
 
         Gibber.MIDI.send( msg, baseTime )
         msg[0] = 0x80 + channel.number
-        Gibber.MIDI.send( msg, baseTime + channel.__duration )
+        Gibber.MIDI.send( msg, baseTime + channel.__duration - 1 )
       },
       
       duration( value ) {

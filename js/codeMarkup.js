@@ -730,13 +730,15 @@ let Marker = {
         let timeNode = timelineNodes[ i ],
             functionNode = timelineNodes[ i + 1 ]
             
-        functionNode.loc.start.line += vOffset - 1
-        functionNode.loc.end.line   += vOffset - 1
-        functionNode.loc.start.ch = functionNode.loc.start.column
-        functionNode.loc.end.ch = functionNode.loc.end.column
+        if( functionNode !== null ) { // check for Score.wait and null
+          functionNode.loc.start.line += vOffset - 1
+          functionNode.loc.end.line   += vOffset - 1
+          functionNode.loc.start.ch = functionNode.loc.start.column
+          functionNode.loc.end.ch = functionNode.loc.end.column
 
-        let marker = cm.markText( functionNode.loc.start, functionNode.loc.end, { className:`score${i/2}` } )
-        score.markup.textMarkers[ 'score' ][ i/2 ] = marker
+          let marker = cm.markText( functionNode.loc.start, functionNode.loc.end, { className:`score${i/2}` } )
+          score.markup.textMarkers[ 'score' ][ i/2 ] = marker
+        }
 
       }
 

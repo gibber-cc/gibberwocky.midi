@@ -87,7 +87,11 @@ let Score = {
   
   next() {
     this.isPaused = false
-    
+
+    //Gibber.Scheduler.addMessage( this, 0 )
+
+    this.tick( Gibber.Scheduler, 0,0 )
+
     return this
   },
   
@@ -117,7 +121,6 @@ let Score = {
         
         if( this.index <= this.timeline.length - 1 ) {
           let time = this.schedule[ this.index ]
-          
           if( typeof time === 'number' && time !== Score.wait ) {
             this.nextTime =  time
           } else {
@@ -155,51 +158,53 @@ let Score = {
             fnc.call( this.track )
           }
           
-          let marker      = this.markup.textMarkers[ 'score' ][ this.index - 1 ],
+          if( fnc !== null ) {
+            let marker      = this.markup.textMarkers[ 'score' ][ this.index - 1 ],
               pos         = marker.find(),
               funcBody    = fnc.toString(),
               isMultiLine = funcBody.includes('\n'),
               code, line 
 
-          pos.start = Object.assign( {}, pos.from )
-          pos.end   = Object.assign( {}, pos.to   )
+            pos.start = Object.assign( {}, pos.from )
+            pos.end   = Object.assign( {}, pos.to   )
 
-          if( isMultiLine ) {
-            code  = fnc.toString().split('\n').slice(1,-1).join('\n')
-            pos.start.line += 1
-            pos.end.line += 1
-          } else {
-            if( funcBody.endsWith( '}' ) ) {
-              line  = marker.lines[ 0 ].text
+            if( isMultiLine ) {
+              code  = fnc.toString().split('\n').slice(1,-1).join('\n')
+              pos.start.line += 1
+              pos.end.line += 1
+            } else {
+              if( funcBody.endsWith( '}' ) ) {
+                line  = marker.lines[ 0 ].text
 
-              let bracketIdx = line.indexOf( '{' ) + 1,
+                let bracketIdx = line.indexOf( '{' ) + 1,
                   commaIdx   = line.indexOf( ',' ),
                   commaAmount = line.endsWith( ',' ) ? 1 : 0
-  
-              code = line.substr( bracketIdx, line.length - bracketIdx - 1 - commaAmount )
 
-              pos.horizontalOffset = bracketIdx//pos.start.ch
+                code = line.substr( bracketIdx, line.length - bracketIdx - 1 - commaAmount )
 
-            }else{
-              // TODO: why doesn't this work? acorn seems unable to parse arrow functions?
-              line = marker.lines[ 0 ].text
-              
-              let arrowIdx = line.indexOf( '>' ) + 1,
+                pos.horizontalOffset = bracketIdx//pos.start.ch
+
+              }else{
+                // TODO: why doesn't this work? acorn seems unable to parse arrow functions?
+                line = marker.lines[ 0 ].text
+
+                let arrowIdx = line.indexOf( '>' ) + 1,
                   commaAmount = line.endsWith( ',' ) ? 1 : 0
 
-              code = line.substr( arrowIdx, line.length - arrowIdx - commaAmount )
+                code = line.substr( arrowIdx, line.length - arrowIdx - commaAmount )
 
-              pos.horizontalOffset = arrowIdx
+                pos.horizontalOffset = arrowIdx
 
+              }
             }
-          }
-            
-          //funcBody = fnc.toString(),
-          //code = funcBody.match(/(?:function\s*\(\)*[\s]*[\{\n])([\s\S]*)\}/)[1]
-          //code = funcBody.match(/(?:(?:\(\))*(?:_)*(?:=>)\s*(?:\{)*)([\"\'\.\{\}\(\)\w\d\s\n]+)(?:\})/i)[1]
+           
+            //funcBody = fnc.toString(),
+            //code = funcBody.match(/(?:function\s*\(\)*[\s]*[\{\n])([\s\S]*)\}/)[1]
+            //code = funcBody.match(/(?:(?:\(\))*(?:_)*(?:=>)\s*(?:\{)*)([\"\'\.\{\}\(\)\w\d\s\n]+)(?:\})/i)[1]
 
-          // TODO: should not be Gibber.currentTrack ?
-          Gibber.Environment.codeMarkup.process( code, pos, Gibber.Environment.codemirror, this )
+            Gibber.Environment.codeMarkup.process( code, pos, Gibber.Environment.codemirror, this )
+
+          }
 
           if( typeof this.onadvance === 'function' ) this.onadvance( this.index - 1 )
         }
@@ -230,7 +235,10 @@ let Score = {
 
 }
 
-return Score.create.bind( Score )
+const ScoreFactory = Score.create.bind( Score )
+ScoreFactory.wait = Score.wait
+
+return ScoreFactory
 
 }
 
