@@ -458,31 +458,37 @@ let Marker = {
     },
 
     BinaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
-       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
-           cssName = className + '_0',
-           marker = cm.markText(
-             start, 
-             end,
-             { 
-               'className': cssName + ' annotation-border' ,
-               startStyle: 'annotation-no-right-border',
-               endStyle: 'annotation-no-left-border',
-               inclusiveLeft:true,
-               inclusiveRight:true
-             }
-           ) 
-       
-       channel.markup.textMarkers[ className ] = marker
-       
-       if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
-       channel.markup.cssClasses[ className ][ index ] = cssName
+      let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+         cssName = className + '_0',
+         marker = cm.markText(
+           start, 
+           end,
+           { 
+             'className': cssName + ' annotation-border' ,
+             startStyle: 'annotation-no-right-border',
+             endStyle: 'annotation-no-left-border',
+             inclusiveLeft:true,
+             inclusiveRight:true
+           }
+         ) 
 
-       setTimeout( () => { $( '.' + cssName )[ 1 ].classList.add( 'annotation-no-horizontal-border' ) }, 250 )
-       
-       patternObject.patternName = className
+      const divStart = Object.assign( {}, start )
+      const divEnd   = Object.assign( {}, end )
 
-       Marker._addPatternUpdates( patternObject, className )
-       Marker._addPatternFilter( patternObject )
+      divStart.ch += 1
+      divEnd.ch -= 1
+
+      const marker2 = cm.markText( divStart, divEnd, { className:'annotation-no-horizontal-border' })
+
+      channel.markup.textMarkers[ className ] = marker
+
+      if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
+      channel.markup.cssClasses[ className ][ index ] = cssName
+
+      patternObject.patternName = className
+
+      Marker._addPatternUpdates( patternObject, className )
+      Marker._addPatternFilter( patternObject )
     },
 
     ArrayExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
