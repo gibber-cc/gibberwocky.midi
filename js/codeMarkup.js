@@ -414,25 +414,47 @@ let Marker = {
 
   _markPattern: {
     Literal( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
-       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
-           cssName = className + '_0',
-           marker = cm.markText( start, end, { 
-             'className': cssName + ' annotation-border', 
-             inclusiveLeft: true,
-             inclusiveRight: true
-           })
-       
-       channel.markup.textMarkers[ className ] = marker
-       
-       if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
+      let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+          cssName = className + '_0',
+          marker = cm.markText( start, end, { 
+            'className': cssName + ' annotation-border', 
+            inclusiveLeft: true,
+            inclusiveRight: true
+          })
 
-       channel.markup.cssClasses[ className ][ index ] = cssName    
-       
-       Marker._addPatternUpdates( patternObject, className )
-       Marker._addPatternFilter( patternObject )
-       
-       patternObject.patternName = className
-       patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
+        channel.markup.textMarkers[ className ] = marker
+
+        if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
+
+        channel.markup.cssClasses[ className ][ index ] = cssName    
+
+        Marker._addPatternUpdates( patternObject, className )
+        Marker._addPatternFilter( patternObject )
+
+        patternObject.patternName = className
+        patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
+    },
+
+    UnaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
+      let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
+          cssName = className + '_0',
+          marker = cm.markText( start, end, { 
+            'className': cssName + ' annotation-border', 
+            inclusiveLeft: true,
+            inclusiveRight: true
+          })
+
+        channel.markup.textMarkers[ className ] = marker
+
+        if( channel.markup.cssClasses[ className ] === undefined ) channel.markup.cssClasses[ className ] = []
+
+        channel.markup.cssClasses[ className ][ index ] = cssName    
+
+        Marker._addPatternUpdates( patternObject, className )
+        Marker._addPatternFilter( patternObject )
+
+        patternObject.patternName = className
+        patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
     },
 
     BinaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
@@ -582,6 +604,8 @@ let Marker = {
       //  channel.markup.textMarkers[ className ][ 0 ] = marker
       //  console.log( 'name', patternNode.callee.name )
       let updateName = typeof patternNode.callee !== 'undefined' ? patternNode.callee.name : patternNode.name 
+      if( patternObject.type !== undefined ) updateName = patternObject.type 
+
       if( Marker.patternUpdates[ updateName ] ) {
         patternObject.update = Marker.patternUpdates[ updateName ]( patternObject, marker, className, cm, channel )
       } else {

@@ -40,11 +40,11 @@ let Score = {
       score.timeline.push( data[ i+1 ] )    
     }
     
-    let loopPauseFnc = () => {
-          score.nextTime = score.phase = 0
-          score.index = -1
-          score.timeline.pop()
-        }
+    score.loopPauseFnc = () => {
+      score.nextTime = score.phase = 0
+      score.index = -1
+      score.timeline.pop()
+    }
 
     Gibber.Environment.codeMarkup.prepareObject( score )
 
@@ -134,8 +134,8 @@ let Score = {
           }
         }else{
           if( this.shouldLoop ) {
-            if( this.timeline[ this.timeline.length - 1 ] !== loopPauseFnc ) {
-              this.timeline.push( loopPauseFnc )
+            if( this.timeline[ this.timeline.length - 1 ] !== this.loopPauseFnc ) {
+              this.timeline.push( this.loopPauseFnc )
             }
             this.nextTime = this.loopPause
           }else{

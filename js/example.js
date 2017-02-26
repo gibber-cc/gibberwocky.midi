@@ -140,18 +140,18 @@ would use:*/
 
 channels[0].cc0( phasor( 1 ) )
 
-This ramp repeats regularly at 1 Hz. All graphs in genish.js typically output to a range of {-1,1} (or sometimes {0,1}),
+/* This ramp repeats regularly at 1 Hz. All graphs in genish.js typically output to a range of {-1,1} (or sometimes {0,1}),
 however, for MIDI we want to ensure that we have an output signal in the range of {0,127}. Thus, by default, the {-1,1}
 signal will automatically be transformed to {0,127}. You can turn this off by passing a value of false as the second
 paramter to the CC function. The example below is designed to automatically travel between 32 and 96, so we pass false
-to ensure that no additional transformation is applied:*/
+to ensure that no additional transformation is applied: */
 
 channels[0].cc0( 
   add( 
     32, 
     mul(  
       64, 
-      phasor( 1 ) 
+      phasor( 1, 0, { min:0 } ) 
     ) 
   ), 
   false 
@@ -167,7 +167,7 @@ channels[0].cc0( cycle( .5 ) )
 a specific amplitude and frequency. The lfo() function provides a simpler syntax for doing this:*/
 
 // frequency, amplitude, bias
-channel[0].cc0( lfo( 2, .1, .7 ) )
+channels[0].cc0( lfo( 2, .2, .7 ) )
 
 // We can also easily sequence parameters of our LFO XXX CURRENTLY BROKEN:
 
@@ -185,38 +185,58 @@ mycycle[ 0 ].seq( [ .25, 1, 2 ], 1 )
 channels[0].cc0( add( .5, div( mycycle, 2 ) ) )
 
 /*For other ugens that have more than one argument (see the genish.js random tutorial for an example) we
-simply indicate the appropriate index... for example, mysah[ 1 ] etc.*/`,
+simply indicate the appropriate index... for example, mysah[ 1 ] etc. For documentation on the types of
+ugens that are available, see the genish.js website: http://charlie-roberts.com/genish/docs/index.html */`,
 
 [ 'using the Score() object' ]  : `// Scores are lists of functions with associated
 // relative time values. In the score below, the first function has
 // a time value of 0, which means it begins playing immediately. The
 // second has a value of 1, which means it beings playing one measure
-// after the previously executed function. The last function has a
-// timestamp of two, which means it begins playing two measures after
+// after the previously executed function. The other funcions have
+// timestamps of two, which means they begins playing two measures after
 // the previously executed function. Scores have start(), stop(),
 // loop(), pause() and rewind() methods.
 
-s = Score([ 
-  0, function() { 
-    channels[1].note.seq( 0, 1/4 )
+s = Score([
+  0, ()=> channels[0].note.seq( -14, 1/4 ),
+ 
+  1, ()=> channels[1].note.seq( [0], Euclid(5,8) ),
+ 
+  2, ()=> {
+    arp = Arp( [0,1,3,5], 3, 'updown2' )
+    channels[ 2 ].velocity( 8 )
+    channels[ 2 ].note.seq( arp, 1/32 )
   },
-  1, function() { 
-     channels[1].note.seq( [0,1], Euclid(3,4), 1 )
-  },
-  2, function() { 
-    channels[1].note.seq( [7,14,13,8].rnd(), [1/4,1/8].rnd(), 2 )
-  },  
+ 
+  2, ()=> arp.transpose( 1 ),
+ 
+  2, ()=> arp.shuffle()
 ])
 
-s.stop()
+// Scores can also be stopped automatically to await manual retriggering.
 
-// scores become much terser using the arrow functions recently added to JS
+s2 = Score([
+  0, ()=> channels[ 0 ].note( 0 ),
+  1/2, ()=> channels[ 0 ].note( 1 ),
+  Score.wait, null,
+  0, ()=> channels[0].note( 2 )
+])
 
-s = Score([
-  0, ()=> channels[1].note.seq( [0,1,2,3], 1/4 ),
-  1, ()=> channels[1].note.seq( [0,1], Euclid(2,4), 1 ),
-  1, ()=> channels[1].note.seq( [3,4], [1/4,1/8], 2 )
-])`,
+// restart playback
+s2.next()
+
+// CURRENTLY BROKEN
+/* The loop() method tells a score to... loop. An optional argument specifies
+ * an amount of time to wait between the end of one loop and the start of the next.*/
+
+s3 = Score([
+  0, ()=> channels[ 0 ].note.seq( 0, 1/4 ),
+  1, ()=> channels[ 0 ].note.seq( [0,7], 1/8 ),
+  1, ()=> channels[ 0 ].note.seq( [0, 7, 14], 1/12 )
+])
+
+s3.loop( 1 )
+`,
 
 ['using the Steps() object (step-sequencer)'] : `/* Steps() creates a group of sequencer objects. Each
  * sequencer is responsible for playing a single note,
@@ -242,7 +262,7 @@ s = Score([
  * The second argument to Steps is the channel to target.  
  */ 
 
-a = Steps({
+steps = Steps({
   [60]: 'ffff',
   [62]: '.a.a',
   [64]: '........7.9.c..d',
@@ -250,14 +270,14 @@ a = Steps({
   [67]: '..c.f....f..f..3',  
   [71]: '.e.a.a...e.a.e.a',  
   [72]: '..............e.',
-}, Gibber.MIDI.channels[0] )
+}, channels[0] )
 
-// rotate one pattern in step sequencer
-// every measure
-a[71].rotate.seq( 1,1 )
+// rotate one pattern (assigned to midinote 71)
+// in step sequencer  every measure
+steps[71].rotate.seq( 1,1 )
 
 // reverse all steps each measure
-a.reverse.seq( 1, 2 )`,
+stpes.reverse.seq( 1, 2 )`,
 
 }
 
