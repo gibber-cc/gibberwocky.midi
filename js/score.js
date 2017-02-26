@@ -177,8 +177,8 @@ let Score = {
                 line  = marker.lines[ 0 ].text
 
                 let bracketIdx = line.indexOf( '{' ) + 1,
-                  commaIdx   = line.indexOf( ',' ),
-                  commaAmount = line.endsWith( ',' ) ? 1 : 0
+                    commaIdx   = line.indexOf( ',' ),
+                    commaAmount = line.endsWith( ',' ) ? 1 : 0
 
                 code = line.substr( bracketIdx, line.length - bracketIdx - 1 - commaAmount )
 
@@ -189,7 +189,7 @@ let Score = {
                 line = marker.lines[ 0 ].text
 
                 let arrowIdx = line.indexOf( '>' ) + 1,
-                  commaAmount = line.endsWith( ',' ) ? 1 : 0
+                    commaAmount = line.endsWith( ',' ) ? 1 : 0
 
                 code = line.substr( arrowIdx, line.length - arrowIdx - commaAmount )
 

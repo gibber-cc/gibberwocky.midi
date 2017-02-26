@@ -58,7 +58,7 @@ let Marker = {
 
     if( !shouldParse ) return
 
-    let tree = acorn.parse( code, { locations:true, ecmaVersion:6 } ).body
+    let tree = acorn.parse( code, { locations:true, ecmaVersion:6, directSourceFile:true } ).body
     
     for( let node of tree ) {
       if( node.type === 'ExpressionStatement' ) { // not control flow
@@ -172,9 +172,15 @@ let Marker = {
     },
 
     CallExpression( expressionNode, codemirror, channel  ) {
+
       let [ components, depthOfCall, index ] = Marker._getCallExpressionHierarchy( expressionNode.expression ),
         args = expressionNode.expression.arguments,
         usesThis, targetPattern, isTrack, method, target
+      
+      // needed for when blocks are split up into individual nodes that are sent to this method
+      let shouldParse = components.includes( 'seq' ) || components.includes( 'Steps' ) || components.includes( 'Score' )
+
+      if( shouldParse === false ) return
 
       // if index is passed as argument to .seq call...
       if( args.length > 2 ) { index = args[ 2 ].value }
