@@ -19,7 +19,7 @@ gulp.task('build', function () {
 watchify.args.entries = './js/index.js'
 watchify.args.debug = true
 
-var b = watchify( browserify( watchify.args ).transform( babel.configure({ sourceMaps:false, presets:['es2015']} ) ) )
+var b = watchify( browserify( watchify.args ) )//.transform( babel.configure({ sourceMaps:false, presets:['es2015']} ) ) )
 b.on( 'update', bundle )
 b.on( 'log', gutil.log )
 

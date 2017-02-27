@@ -1,71 +1,69 @@
 const Examples = {
   default : `/* 
  * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
- * A MIDI OUTPUT IN THE MIDI TAB. THEN, SELECT A MIDI INPUT TO ACCEPT
- * MIDI CLOCK SYNC FROM YOUR DAW. These MIDI settings will be remembered
- * from one gibberwocky.midi session to the next. For more information see 
- */
-
-/* 
- * NEXT STEP (AND THIS IS JUST AS IMPORTANT) YOU MUST START
- * THE TRANSPORT IN YOUR DAW. IF THE TRANSPORT WAS ALREADY RUNNING
- * WHEN YOU LOADED THIS PAGE, STOP IT, AND THEN START IT AGAIN.
- * This will create an initial sync signal between you DAW and this page.
+ * A MIDI OUTPUT IN THE MIDI TAB. If you want to accept MIDI Clock sync,
+ * make sure you also select a MIDI input port.  These MIDI settings will be remembered
+ * from one gibberwocky.midi session to the next.
+ *
+ * If you're using external clock sync, stop your sync source, rewind your transport, 
+ * and restart playback to establish the sync. 
  * After this initial stopping / starting you should be able to start and
- * stop the transport at will in your DAW and maintain sync in gibberwocky.midi.
+ * stop the transport at will in your DAW and maintain sync in gibberwocky.midi
+ *
+ * Last but not least, setup some MIDI channel to control to some type of
+ * melodic instrument (at least for this tutorial). This might mean plugging
+ * your MIDI interface into a hardware synth, or instantiating a soft-synth
+ * in your DAW.
+ *
+ * And now we're ready to start :)
  */
 
-// OK, put some type of melodic instrument on a track in your DAW, and set that
-// track to receive messages from the MIDI output you selected for gibberwocky.
-
-// And now we're ready to start :)
-
-// Pick a MIDI channel to target. subsitute another number for 0 as needed
-// To run the line of code below, place your cursor on the line and hit Ctrl+Enter.
-channel = channels[0]
+// To run any line of code below, place your cursor on the line and hit Ctrl+Enter.
+// Change the MIDI channel number as needed.
 
 // play a note identified by name
-channel.note( 'c4' ) // ... or d4, fb2, e#5 etc.
+channels[0].note( 'c4' ) // ... or d4, fb2, e#5 etc.
 
 // play a note identified by number. The number represents a
 // position in gibberwocky's master scale object. By default the master
-// scale is set to a root of C4 and the aeolian mode.
-channel.note( 0 )
+// scale is set to a root of C4 and the aeolian mode. Notes can have
+// negative indices.
+channels[0].note( 0 )
 
 // Change master scale root
 Scale.master.root( 'e4' )
-channel.note( 0 )
+channels[0].note( 0 )
 
 // You can also send raw midi note messages without using
 // gibberwocky.midi's internal scale with calls to midinote instead
 // of note.
-channel.midinote( 64 )
+channels[0].midinote( 64 )
 
 // You can change velocity...
-channel.velocity( 20 )
-channel.midinote( 64 )
+channels[0].velocity( 20 )
+channels[0].midinote( 64 )
 
-channel.velocity( 100 )
-channel.midinote( 64 )
+channels[0].velocity( 100 )
+channels[0].midinote( 64 )
 
 // ... and you can set duration in milliseconds
-channel.duration( 2000 )
-channel.midinote( 64 )
-channel.duration( 50 )
-channel.midinote( 64 )
+channels[0].duration( 2000 )
+channels[0].midinote( 64 )
+channels[0].duration( 50 )
+channels[0].midinote( 64 )
 
 // sequence calls to the note method every 1/16 note. An optional
 // third argument assigns an id# to the sequencer; by
 // default this id is set to 0 if no argument is passed.
 // Assigning sequences to different id numbers allows them
 // to run in parallel.
-channel.note.seq( [0,1,2,3,4,5,6,7], 1/8 )
+channels[0].note.seq( [0,1,2,3,4,5,6,7], 1/8 )
 
 // sequence velocity to use random values between 10-127 (midi range)
-channel.velocity.seq( Rndi( 10,127), 1/16 )
+channels[0].velocity.seq( Rndi( 10,127), 1/16 )
 
 // sequence duration of notes in milliseconds
-channel.duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
+channels[0].duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
 
 // sequence the master scale to change root every measure
 Scale.root.seq( ['c4','d4','f4','g4'], 1 )
@@ -74,7 +72,7 @@ Scale.root.seq( ['c4','d4','f4','g4'], 1 )
 Scale.mode.seq( ['aeolian','lydian', 'wholeHalf'], 1 )
 
 // stop the sequence with id# 0 from running
-channel.note[ 0 ].stop()
+channels[0].note[ 0 ].stop()
 
 // stop scale sequencing
 Scale.mode[ 0 ].stop()
@@ -91,7 +89,7 @@ Scale.root( 'c3' )
 a = Arp( [0,2,3,5], 4, 'updown2' )
 
 // create sequencer using arpeggiator and 1/16 notes
-channel.note.seq( a, 1/16 )
+channels[0].note.seq( a, 1/16 )
 
 // transpose the notes in our arpeggio by one scale degree
 a.transpose( 1 )
@@ -104,14 +102,14 @@ a.transpose.seq( 1,1 )
 a.reset.seq( 1, 8 )
 
 // stop sequence
-channel.note[ 0 ].stop()
+channels[0].note[ 0 ].stop()
 
 // creates sequencer at this.note[1] (0 is default)
-channel.note.seq( [0,1,2,3], [1/4,1/8], 1 )
+channels[0].note.seq( [0,1,2,3], [1/4,1/8], 1 )
 
 // parallel sequence at this.note[2] with 
 // random note selection  (2 is last arg)
-channel.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
+channels[0].note.seq( [5,6,7,8].rnd(), 1/4, 2 )
 
 // Every sequence contains two Pattern functions. 
 // The first, 'values',determines the output of the 
@@ -119,13 +117,17 @@ channel.note.seq( [5,6,7,8].rnd(), 1/4, 2 )
 // sequencer fires.
 
 // sequence transposition of this.note[2]
-channel.note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
+channels[0].note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
 
-// stop this.note[1]
-channel.note[ 1 ].stop()
+// stop note[1] sequence
+channels[0].note[ 1 ].stop()
 
-// start this.note[0]
-channel.note[ 1 ].start()`,
+// restart note[1] sequence
+channels[0].note[ 1 ].start()
+
+// stop everything running on the channel
+channels[0].stop()`,
+
 
 ['modulating with genish.js'] : `/* gen~ is an extension for Max for Live for synthesizing audio/video signals.
 In gibberwocky.midi, we can use a JavaScript port of gen~, genish.js to create complex modulation graphs outputting
