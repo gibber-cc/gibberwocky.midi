@@ -1,4 +1,233 @@
 const Examples = {
+  'tutorial 1: basic messaging':`/*
+ * gibberwocky.midi - tutorial #1: basic messaging
+ *
+ * This first intro will explain how to execute code, and send basic
+ * MIDI noteon / noteoff and CC messages. 
+ * 
+ * First: choose a MIDI output in the MIDI tab that appears in the sidebar
+ * to the right. This will be the destination MIDI port for all messages
+ * that gibberwocky outputs. For this intro, it's a good idea to have
+ * a simple melodic instrument setup to receive gibberwocky's MIDI output.
+ */
+
+// MIDI messages are all sent via a channel object in gibberwocky. A global
+// array storing access the these is found in the 'channels' variable.
+
+// Send a MIDI NoteOn message with a value of 60 to channel 0 (all MIDI messages are
+// zero-indexed in gibberwocky).  Place your cursor
+// on any line of code in the editor and hit Ctrl+Enter to execute it: 
+
+channels[0].midinote( 60 )
+
+// Each channel has a velocity and a duration method.
+
+// define a value to be sent as the third byte of all NoteOn messages from channels[0]
+
+channels[0].velocity( 32 )
+channels[0].midinote( 60 )
+
+channels[0].velocity( 127 )
+cahnnels[0].midinote( 60 )
+
+// define how long gibberwocky waits before sending a NoteOff message after each note
+// is generated. Measured in milliseconds
+
+channels[0].duration( 2000 )
+channels[0].midinote( 60 )
+
+channels[0].duration( 50 )
+channels[0].midinote( 60 )
+
+// We can also call midichord and pass an array of notes:
+channels[0].midichord( [48,55,60] )
+
+// And we can send CC messages as follows (also zero-indexed):
+
+channels[0].cc0( 64 ) // send value 64 on CC 0.
+channels[0].cc1( 32 ) // send value 32 on CC 1.
+
+// Modulation graphs can output continuous streams of CC messages.
+// As a quick example, here's a LFO running at .5 Hz outputting to CC 0:
+
+channels[0].cc0( lfo( .5 ) )
+
+// Try running the above line of code with different Hz values. 
+// To cancel the LFO we can assign a new value to cc0 to replace it:
+
+channels[0].cc0( 64 )
+
+// OK, that's some basics out of the way. Try the sequencing tutorial next!`
+  ,
+
+  'tutorial 2: basic sequencing': `/* gibberwocky.midi - tutorial #2: basic sequencing
+ *
+ * This tutorial will provide an introdution to sequencing midinote and
+ * cc messages, and a brief overview of rhythm in gibberwocky.
+ *
+ * Make sure you have a MIDI output selected in the MIDI tab of the sidebar. You will
+ * also need to choose a clock source. gibberwocky can generate its own 
+ * clock (internal) or you can use incoming MIDI clock messages (external).
+ * If you want to accept MIDI Clock sync, make sure you also select a MIDI 
+ * input port to receive it on.  These MIDI settings will be remembered from 
+ * one gibberwocky.midi session to the next.
+ *
+ * If you decide to use external clock sync, stop your sync source, rewind your transport, 
+ * and restart playback to establish the sync with a timeline.
+ * After this initial stopping / starting you should be able to start and
+ * stop the transport at will in your DAW and maintain sync in gibberwocky.midi
+
+ */
+
+// In tutorial #1, we saw how we could send MIDI messages to specific MIDI
+// channel objects. We can easily sequence any of these methods by adding
+// a call to .seq(). For example:
+
+// send noteon message with a first value of 60
+channels[0].midinote( 60 )
+
+// send same value every quarter note
+channels[0].midinote.seq( 60, 1/4 )
+
+// You can stop all sequences in gibberwocky with the Ctrl+. keyboard shortcut
+// (Ctrl + period). You can also stop all sequences on a specific channel:
+
+channels[0].stop()
+
+// Most sequences in gibberwocky contain values (60) and timings (1/4). To
+// sequence multiple values we simply pass an array:
+
+channels[0].midinote.seq( [60,72,48], 1/4 )
+
+// ... and we can do the same thing with multiple timings:
+
+channels[0].midinote.seq( [60,72,48], [1/4,1/8] )
+
+// We can also sequence our note velocities and durations.
+channels[0].midinote.seq( 60, 1/2 )
+channels[0].velocity.seq( [16, 64, 127], 1/2 )
+channels[0].duration.seq( [10, 100,500], 1/2 )
+
+// the same idea works for CC messages:
+channels[0].cc0( 64 )
+channels[0].cc0.seq( [0, 64, 127], 1/8 )
+
+// If you experimented with running multiple variations of the midinote 
+// sequences you might have noticed that only one runs at a time. For example,
+// if you run these two lines:
+
+channels[0].midinote.seq( 72, 1/4 )
+channels[0].midinote.seq( 48, 1/4 )
+
+// ...you'll notice only the second one actually triggers. By default, gibberwocky
+// will replace an existing sequence with a new one running on the same channel. If
+// you want to run multiple sequences of notes, you can place them on different channels:
+
+channels[0].midinote.seq( 72, 1/4 )
+channels[1].midinote.seq( 48, 1/4 )
+
+// Alternatively, you can pass an ID number as a third argument to calls to .seq() 
+// In the examples of sequencing we've seen so far, no ID has been given, which means
+// gibberwocky is assuming a default ID of 0 for each sequence. When you launch a sequence
+// on a channel that has the same ID as another running sequence, the older sequence is stopped.
+// If the sequences have different IDs they run concurrently. Note this makes it really
+// easy to create polyrhythms.
+
+channels[0].midinote.seq( 48, 1 ) // assumes ID of 0
+channels[0].midinote.seq( 60, 1/2, 1 ) 
+channels[0].midinote.seq( 72, 1/3, 2 ) 
+channels[0].midinote.seq( 84, 1/7, 3 ) 
+
+// We can also sequence calls to midichord. You might remember from the first tutorial
+// that we pass midichord an array of values, where each value represents one note. This
+// means we need to pass an array of arrays in order to move between different chords.
+
+channels[0].midichord.seq( [[60,64,68], [62,66,72]], 1/2 )
+
+// Even we're only sequencing a single chord, we still need to pass a 2D array. Of course,
+// specifying arrays of MIDI values is not necessarily an optimal representation for chords.
+// Move on to tutorial #3 to learn more about how to leverage music theory in gibberwocky.
+`,
+
+  'tutorial 3: harmony':`
+/* gibberwocky.midi - tutorial #3: Harmony
+ *
+ * This tutorial covers the basics of using harmony in gibberwocky.midi. It assumes you
+ * know the basics of sequencing (tutorial #2) and have an appropriate MIDI output setup.
+ *
+ * In the previous tutorials we looked at using raw MIDI values to send messages. However,
+ * using MIDI note numbers is not an ideal representation. gibberwocky includes knoweldge of
+ * scales, chords, and note names to make musical sequencing easier and more flexible. In this
+ * tutorial, instead of using channel.midinote() and channel.midichord() we'll be using 
+ * channel.note() and channel.chord(). These methods use gibberwocky's theory objects to
+ * determine what MIDI notes are eventually outputted.
+ */
+
+// In our previous tutorial, we sent out C in the fourth octave by using MIDI number 60:
+channels[0].midinote( 60 )
+
+// We can also specify notes with calls to the note() method by passing a name and octave.
+channels[0].note( 'c4' )
+channels[0].note( 'fb3' )
+
+channels[0].note.seq( ['c4','e4','g4'], 1/8 )
+
+// remember, Ctrl+. stops all running sequences.
+
+// In gibberwocky, the default scale employed is C minor, starting in the fourth octave. 
+// This means that if we pass 0 as a value to note(), C4 will also be played.
+channels[0].note( 0 )
+
+// sequence C minor scale, starting in the fourth octave:
+channels[0].note.seq( [0,1,2,3,4,5,6,7], 1/8 )
+
+// negative scale indices also work:
+channels[0].note.seq( [-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7], 1/8 )
+
+// there is a global Scale object we can use to change the root and mode
+// for all scales. Run the lines below individually  with the previous note sequence running.
+Scale.root( 'd4' )
+Scale.mode( 'lydian' )
+
+Scale.root( 'g2' )
+Scale.mode( 'phrygian' )
+
+// We can also sequence changes to the root / mode:
+Scale.root.seq( ['c2','d2','f2,'g2'], 2 )
+Scale.mode.seq( ['lydian', 'ionian', 'locrian'], 2 )
+
+// We can also define our own scales using chromatic scale indices. Unfortunately, 
+// microtuning with MIDI is very diffcult, so only the standard eleven notes of 
+// Western harmony are supported. Scales can have arbtrary numbers of notes.
+Scale.modes[ 'my mode' ] = [ 0,1,2,3,5,6,10 ]
+Scale.mode( 'my mode' )
+
+Scale.modes[ 'another mode' ] = [0,1]
+Scale.mode( 'another mode' )
+
+Scale.mode.seq( ['my mode', 'another mode'], 4 )
+
+/******** chords **********/
+// Last but not least there are a few different ways to specify chords in gibberwocky.
+// First, we can use note names:
+
+channels[0].chord( ['c4','eb4','gb4','a4'] )
+
+// Or we can use scale indices:
+channels[0].chord( [0,2,4,5] )
+
+channels[0].chord.seq( [[0,2,4,5], [1,3,4,6]], 1 )
+
+// We can also use strings that identify common chord names.
+channels[0].chord( 'c4maj7' )
+channels[0].chord( 'c#4sus7b9' )
+
+channels[0].chord.seq( ['c4dim7', 'bb3maj7', 'fb3aug7'], 2 )
+
+// OK, that's harmony in a nutshell. Next learn a bit about patterns and
+// pattern manipulation in gibberwocky in tutorial #4.
+ `,
+ 
   default : `/* 
  * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
  * A MIDI OUTPUT IN THE MIDI TAB. If you want to accept MIDI Clock sync,

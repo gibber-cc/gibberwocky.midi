@@ -63,9 +63,11 @@ let seqclosure = function( Gibber ) {
           let chord = args[ 0 ], out
 
           if( typeof chord === 'string' ) {
+            console.log( chord )
             let chordObj = Gibber.Theory.Chord.create( chord )
-
+    
             out = chordObj.notes 
+            console.log( out )
           }else{
             if( typeof chord === 'function' ) chord = chord()
             out = chord.map( Gibber.Theory.Note.convertToMIDI )

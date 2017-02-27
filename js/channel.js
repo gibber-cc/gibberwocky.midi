@@ -60,24 +60,21 @@ let Channel = {
         Gibber.MIDI.send( msg )
       },
 
-      chord( chord, velocity='', duration='' ) {
-        let msg = []
-        
-        if( typeof chord  === 'string' ){
-          chord = Gibber.Theory.Chord.create( chord ).notes
-          chord.forEach( v => channel.midinote( v ) )
+      chord( chord, offset=null, doNotConvert=false ) {
+        if( doNotConvert === true ) { // from sequencer
+          chord.forEach( v => channel.midinote( v, offset ) )
         }else{
-          chord.forEach( v => channel.note( v ) )
+          if( typeof chord  === 'string' ){
+            chord = Gibber.Theory.Chord.create( chord ).notes
+            chord.forEach( v => channel.midinote( v ) )
+          }else{
+            chord.forEach( v => channel.note( v ) )
+          }
         }
       },
 
       midichord( chord, velocity='', duration='' ) {
-        let msg = []
-        for( let i = 0; i < chord.length; i++ ) {
-          msg.push( `${channel.id} note ${chord[i]} ${velocity} ${duration}`.trimRight() )
-        }
-
-        Gibber.MIDI.send( msg )
+        chord.forEach( v => channel.midinote( v ) )
       },
 
       stop() {
@@ -110,7 +107,8 @@ let Channel = {
     Gibber.addSequencingToMethod( channel, 'velocity', 1 )
     Gibber.addSequencingToMethod( channel, 'duration', 1 )
     Gibber.addSequencingToMethod( channel, 'midinote' )
-    
+    Gibber.addSequencingToMethod( channel, 'midichord' )
+
     for( let i = 0; i < 128; i++ ) {
       const ccnum = i
       channel[ 'cc'+ccnum ] = ( val, offset = null ) => {

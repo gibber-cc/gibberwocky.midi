@@ -199,7 +199,7 @@ let Gibber = {
     }
   },
 
-  addMethod( obj, methodName, channel, ccnum)  {
+  addMethod( obj, methodName, channel, ccnum )  {
     let v = 0,//parameter.value,
         p,
         seqKey = `${channel} cc ${ccnum}`
@@ -222,15 +222,18 @@ let Gibber = {
       if( _v !== undefined ) {
         if( typeof _v === 'object' && _v.isGen ) {
           if( shouldTransform === true ) { // affine transform -1:1 to 0:127
-            _v = Gibber.Gen.genish.floor(
-              Gibber.Gen.genish.mul( 
-                Gibber.Gen.genish.div( 
-                  Gibber.Gen.genish.add( 1, _v ), 
-                  2 
-                ), 
-                127 
-              ) 
-            )
+            _v = 
+              Gibber.Gen.genish.clamp(
+                Gibber.Gen.genish.floor(
+                  Gibber.Gen.genish.mul( 
+                    Gibber.Gen.genish.div( 
+                      Gibber.Gen.genish.add( 1, _v ), 
+                      2 
+                    ), 
+                  127 
+                  ) 
+                ),
+              0, 127 )
           }
 
           _v = Gibber.Gen.genish.gen.createCallback( _v )
