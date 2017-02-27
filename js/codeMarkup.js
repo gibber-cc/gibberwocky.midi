@@ -369,7 +369,7 @@ let Marker = {
       $( className ).remove( 'annotation-' + border + '-border' )
       $( className ).add( 'annotation-' + border + '-border-cycle' )
       
-      if( lastBorder ) {
+      if( lastBorder !== null ) {
         $( className ).remove( 'annotation-' + lastBorder + '-border-cycle' )
         $( className ).add( 'annotation-' + lastBorder + '-border' )
       }
@@ -382,9 +382,18 @@ let Marker = {
 
     cycle.clear = function() {
       modCount = 1
-      if( lastBorder && lastClassName )
-        $( lastClassName ).remove( 'annotation-' + lastBorder + '-border-cycle' )
       
+      if( lastClassName !== null ) {
+        $( lastClassName ).remove( 'annotation-left-border' )
+        $( lastClassName ).remove( 'annotation-left-border-cycle' )
+        $( lastClassName ).remove( 'annotation-right-border' )
+        $( lastClassName ).remove( 'annotation-right-border-cycle' )
+        $( lastClassName ).remove( 'annotation-top-border' )
+        $( lastClassName ).remove( 'annotation-top-border-cycle' )
+        $( lastClassName ).remove( 'annotation-bottom-border' )
+        $( lastClassName ).remove( 'annotation-bottom-border-cycle' )
+      }
+
       lastBorder = null
     }
 
@@ -513,7 +522,7 @@ let Marker = {
 
         if( element.type === 'BinaryExpression' ) {
           marker = cm.markText( elementStart, elementEnd, { 
-            'className': cssClassName + ' annotation annotation-border',
+            'className': cssClassName + ' annotation',
              startStyle: 'annotation-no-right-border',
              endStyle: 'annotation-no-left-border',
              inclusiveLeft:true, inclusiveRight:true
