@@ -365,10 +365,14 @@ let Marker = {
         case 3: border = 'left'; break;
       }
 
-      $( className ).add( 'annotation-' + border + '-border' )
+
+      $( className ).remove( 'annotation-' + border + '-border' )
+      $( className ).add( 'annotation-' + border + '-border-cycle' )
       
-      if( lastBorder )
-        $( className ).remove( 'annotation-' + lastBorder + '-border' )
+      if( lastBorder ) {
+        $( className ).remove( 'annotation-' + lastBorder + '-border-cycle' )
+        $( className ).add( 'annotation-' + lastBorder + '-border' )
+      }
       
       lastBorder = border
       lastClassName = className
@@ -379,7 +383,7 @@ let Marker = {
     cycle.clear = function() {
       modCount = 1
       if( lastBorder && lastClassName )
-        $( lastClassName ).remove( 'annotation-' + lastBorder + '-border' )
+        $( lastClassName ).remove( 'annotation-' + lastBorder + '-border-cycle' )
       
       lastBorder = null
     }
@@ -464,7 +468,7 @@ let Marker = {
            start, 
            end,
            { 
-             'className': cssName + ' annotation-border' ,
+             'className': cssName + ' annotation annotation-border' ,
              startStyle: 'annotation-no-right-border',
              endStyle: 'annotation-no-left-border',
              inclusiveLeft:true,
@@ -478,7 +482,7 @@ let Marker = {
       divStart.ch += 1
       divEnd.ch -= 1
 
-      const marker2 = cm.markText( divStart, divEnd, { className:'annotation-no-horizontal-border' })
+      const marker2 = cm.markText( divStart, divEnd, { className:'annotation-binop-border' })
 
       channel.markup.textMarkers[ className ] = marker
 
@@ -496,6 +500,8 @@ let Marker = {
           marker, 
           count = 0
 
+
+
       for( let element of patternNode.elements ) {
         let cssClassName = patternName + '_' + count,
             elementStart = Object.assign( {}, start ),
@@ -507,31 +513,47 @@ let Marker = {
 
         if( element.type === 'BinaryExpression' ) {
           marker = cm.markText( elementStart, elementEnd, { 
-            'className': cssClassName + ' annotation',
+            'className': cssClassName + ' annotation annotation-border',
              startStyle: 'annotation-no-right-border',
              endStyle: 'annotation-no-left-border',
              inclusiveLeft:true, inclusiveRight:true
           })
 
-          let count = 0
-          let classAdder = () => {
-            let element = $( '.' + cssClassName )[1]
-            if( element !== undefined ) {
-              element.classList.add( 'annotation-no-horizontal-border' ) 
-            } else {
-              if( count++ < 4 ) {
-                setTimeout( classAdder, 250 )
-              }
-            }
-          }
+          // create specific border for operator: top, bottom, no sides
+          const divStart = Object.assign( {}, elementStart )
+          const divEnd   = Object.assign( {}, elementEnd )
 
-          setTimeout( classAdder, 250 )
+          divStart.ch += 1
+          divEnd.ch -= 1
+
+          const marker2 = cm.markText( divStart, divEnd, { className:cssClassName + '_binop annotation-binop' })
+
+
+        }else if( element.type === 'ArrayExpression' ) {
+           marker = cm.markText( elementStart, elementEnd, { 
+            'className': cssClassName + ' annotation',
+            inclusiveLeft:true, inclusiveRight:true,
+            startStyle:'annotation-left-border-start',
+            endStyle: 'annotation-right-border-end',
+           })
+
+           // mark opening array bracket
+           const arrayStart_start = Object.assign( {}, elementStart )
+           const arrayStart_end  = Object.assign( {}, elementStart )
+           arrayStart_end.ch += 1
+           cm.markText( arrayStart_start, arrayStart_end, { className:cssClassName + '_start' })
+
+           // mark closing array bracket
+           const arrayEnd_start = Object.assign( {}, elementEnd )
+           const arrayEnd_end   = Object.assign( {}, elementEnd )
+           arrayEnd_start.ch -=1
+           cm.markText( arrayEnd_start, arrayEnd_end, { className:cssClassName + '_end' })
 
         }else{
           marker = cm.markText( elementStart, elementEnd, { 
             'className': cssClassName + ' annotation',
             inclusiveLeft:true, inclusiveRight:true
-          } )
+          })
         }
 
         if( channel.markup.textMarkers[ patternName  ] === undefined ) channel.markup.textMarkers[ patternName ] = []
@@ -543,7 +565,7 @@ let Marker = {
         count++
       }
       
-      let highlighted = null,
+      let highlighted = { className:null, isArray:false },
           cycle = Marker._createBorderCycleFunction( patternName, patternObject )
       
       patternObject.patternType = patternType 
@@ -554,14 +576,41 @@ let Marker = {
         
         className += '_' + patternObject.update.currentIndex 
 
-        if( patternType === 'timings' ) {
-          //console.log( className, highlighted )
-        }
+        if( highlighted.className !== className ) {
 
-        if( highlighted !== className ) {
-          if( highlighted ) { $( highlighted ).remove( 'annotation-border' ) }
-          $( className ).add( 'annotation-border' )
-          highlighted = className
+          // remove any previous annotations for this pattern
+          if( highlighted.className !== null ) {
+            if( highlighted.isArray === false && highlighted.className ) { 
+              $( highlighted.className ).remove( 'annotation-border' ) 
+            }else{
+              $( highlighted.className ).remove( 'annotation-array' )
+              $( highlighted.className + '_start' ).remove( 'annotation-border-left' )
+              $( highlighted.className + '_end' ).remove( 'annotation-border-right' )
+
+              if( $( highlighted.className + '_binop' ).length > 0 ) {
+                $( highlighted.className + '_binop' ).remove( 'annotation-binop-border' )
+              }
+
+            }
+          }
+
+          // add annotation for current pattern element
+          if( Array.isArray( patternObject.values[ patternObject.update.currentIndex ] ) ) {
+            $( className ).add( 'annotation-array' )
+            $( className + '_start' ).add( 'annotation-border-left' )
+            $( className + '_end' ).add( 'annotation-border-right' )
+            highlighted.isArray = true
+          }else{
+            $( className ).add( 'annotation-border' )
+
+            if( $( className + '_binop' ).length > 0 ) {
+              $( className + '_binop' ).add( 'annotation-binop-border' )
+            }
+            highlighted.isArray = false
+          }
+
+          highlighted.className = className
+
           cycle.clear()
         }else{
           cycle()
@@ -569,7 +618,7 @@ let Marker = {
       }
 
       patternObject.clear = () => {
-        if( highlighted ) { $( highlighted ).remove( 'annotation-border' ) }
+        if( highlighted.className !== null ) { $( highlighted.className ).remove( 'annotation-border' ) }
         cycle.clear()
       }
 

@@ -83,26 +83,62 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 .CodeMirror-matchingbracket{ color: #b00 !important }
 
 .annotation { 
-  padding:1px;
+  /*padding:0px 1px;*/
+  border:1px solid transparent;
+  padding:0px;
   box-sizing:border-box !important;
 }
+
 .annotation-highlight { background-color: #ffffff }
+
 .annotation-border { 
-  border: solid #999 1px;
-  padding:0 !important;
-  box-sizing:border-box !important;
+  /* border-color:#999 !important; */
+  border-color:#999;
 }
-.annotation-right-border  { border-right-color:#ddd   !important }
-.annotation-left-border   { border-left-color:#ddd    !important }
-.annotation-top-border    { border-top-color:#ddd     !important } 
-.annotation-bottom-border { border-bottom-color:#ddd  !important }
-.annotation-no-left-border{ border-left-color:transparent  !important }
-.annotation-no-right-border{border-right-color:transparent !important }
+
+.annotation-right-border    { border-right-color:#999 }
+.annotation-left-border     { border-left-color:#999 }
+.annotation-top-border      { border-top-color:#999 } 
+.annotation-bottom-border   { border-bottom-color:#999 }
+
+.annotation-right-border-cycle   { border-right-color:#ddd  !important }
+.annotation-left-border-cycle    { border-left-color:#ddd   !important }
+.annotation-top-border-cycle     { border-top-color:#ddd    !important } 
+.annotation-bottom-border-cycle  { border-bottom-color:#ddd !important }
+
+.annotation-no-left-border  { border-left-color:transparent  !important }
+.annotation-no-right-border { border-right-color:transparent !important }
+
+.annotation-border-left {
+  border-left-color:#999 !important;
+}
+
+.annotation-border-right {
+  border-right-color: #999 !important;
+}
+
 .annotation-no-horizontal-border { 
-  border-width: 1px 0 !important;
-  padding-left:0 !important; 
-  padding-right:0 !important;
+  /* padding-left:1;  */
+  /* padding-right:1; */
 }
+
+.annotation-binop-border { 
+  /*border-color:transparent;*/
+  border-left-color:transparent !important;
+  border-right-color:transparent !important;
+}
+
+.annotation-array {
+  border-top-color:#999;
+  border-bottom-color:#999;
+}
+
+.annotation-binop {
+  border-left-color:  transparent !important;
+  border-right-color: transparent !important;
+  border-style: solid;
+}
+
 .scoreCurrentIndex { 
   /*border: #700 1px solid */
   /*font-weight:bold !important*/
@@ -113,7 +149,7 @@ span.cm-string {color: rgb(225, 225, 225) !important }
   color:rgba(46,50,53,1) !important;
 }
 
-.euclid0 {  background:rgba(96,100,103,1) }
+.euclid0 { background:rgba(96,100,103,1) }
 
 .pattern-update-range-outside { color:#888; }
 .pattern-update-range-inside  { 
