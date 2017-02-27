@@ -1,5 +1,5 @@
 const Examples = {
-  'tutorial 1: basic messaging':`/*
+  ['tutorial 1: basic messaging']:`/*
  * gibberwocky.midi - tutorial #1: basic messaging
  *
  * This first intro will explain how to execute code, and send basic
@@ -28,7 +28,7 @@ channels[0].velocity( 32 )
 channels[0].midinote( 60 )
 
 channels[0].velocity( 127 )
-cahnnels[0].midinote( 60 )
+channels[0].midinote( 60 )
 
 // define how long gibberwocky waits before sending a NoteOff message after each note
 // is generated. Measured in milliseconds
@@ -149,7 +149,7 @@ channels[0].midichord.seq( [[60,64,68], [62,66,72]], 1/2 )
 // Move on to tutorial #3 to learn more about how to leverage music theory in gibberwocky.
 `,
 
-  'tutorial 3: harmony':`
+['tutorial 3: harmony'] :`
 /* gibberwocky.midi - tutorial #3: Harmony
  *
  * This tutorial covers the basics of using harmony in gibberwocky.midi. It assumes you
@@ -225,146 +225,64 @@ channels[0].chord( 'c#4sus7b9' )
 channels[0].chord.seq( ['c4dim7', 'bb3maj7', 'fb3aug7'], 2 )
 
 // OK, that's harmony in a nutshell. Next learn a bit about patterns and
-// pattern manipulation in gibberwocky in tutorial #4.
- `,
- 
-  default : `/* 
- * BEFORE DOING ANYTHING, MAKE SURE YOU CHOOSE
- * A MIDI OUTPUT IN THE MIDI TAB. If you want to accept MIDI Clock sync,
- * make sure you also select a MIDI input port.  These MIDI settings will be remembered
- * from one gibberwocky.midi session to the next.
+// pattern manipulation in gibberwocky in tutorial #4.`,
+
+['tutorial 4: patterns and pattern transformations']:`/* gibberwocky.midi - tutorial #4: Patterns and Transformations
  *
- * If you're using external clock sync, stop your sync source, rewind your transport, 
- * and restart playback to establish the sync. 
- * After this initial stopping / starting you should be able to start and
- * stop the transport at will in your DAW and maintain sync in gibberwocky.midi
+ * This tutorial covers the basics of using patterns in gibberwocky.midi. It assumes you
+ * know the basics of sequencing (tutorial #2) and have an appropriate MIDI output setup.
  *
- * Last but not least, setup some MIDI channel to control to some type of
- * melodic instrument (at least for this tutorial). This might mean plugging
- * your MIDI interface into a hardware synth, or instantiating a soft-synth
- * in your DAW.
- *
- * And now we're ready to start :)
+ * In tutorial #2 we briefly mentioned that sequences consist of values and timings. These
+ * are both stored in Pattern objects in gibberwocky, and these patterns can be controlled
+ * and manipulated in a variety of ways over time.
  */
+   
+// Make sure the console is open in your sidebar to see the calls to Gibber.log()
+// Create a Pattern with some initial values.
+myvalues = Pattern( 60,62,64,65 )
 
-// To run any line of code below, place your cursor on the line and hit Ctrl+Enter.
-// Change the MIDI channel number as needed.
+Gibber.log( myvalues() ) // 60
+Gibber.log( myvalues() ) // 62
+Gibber.log( myvalues() ) // 64
+Gibber.log( myvalues() ) // 65
+Gibber.log( myvalues() ) // back to 60...
 
-// play a note identified by name
-channels[0].note( 'c4' ) // ... or d4, fb2, e#5 etc.
+// sequence using this pattern:
+channels[0].midinote.seq( myvalues, 1/8 )
 
-// play a note identified by number. The number represents a
-// position in gibberwocky's master scale object. By default the master
-// scale is set to a root of C4 and the aeolian mode. Notes can have
-// negative indices.
-channels[0].note( 0 )
+// Everytime we pass values and timings to .seq(), it converts these into Pattern objects
+// (unless we're already passing a Pattern object(s)). Remember from tutorial #2 that
+// all of our sequences have an ID number, which defaults to 0. We can access these patterns
+// as follows:
 
-// Change master scale root
-Scale.master.root( 'e4' )
-channels[0].note( 0 )
+channels[0].midinote.seq( [36,48,60,72], [1/2,1/4] )
+Gibber.log( channels[0].midinote[0].values.toString() ) 
+Gibber.log( channels[0].midinote[0].timings.toString() ) 
 
-// You can also send raw midi note messages without using
-// gibberwocky.midi's internal scale with calls to midinote instead
-// of note.
-channels[0].midinote( 64 )
+// Now that we can access them, we can apply transformations:
 
-// You can change velocity...
-channels[0].velocity( 20 )
-channels[0].midinote( 64 )
+channels[0].midinote[0].values.reverse()
+channels[0].midinote[0].values.transpose( 1 ) // add 1 to each value
+channels[0].midinote[0].values.scale( 1.5 )   // scale each value by .5
+channels[0].midinote[0].values.rotate( 1 )    // shift values to the right
+channels[0].midinote[0].values.rotate( -1 )   // shift values to the left
+channels[0].midinote[0].values.reset()        // reset to initial values
 
-channels[0].velocity( 100 )
-channels[0].midinote( 64 )
+// We can sequence these transformations:
+channels[0].midinote[0].values.rotate.seq( 1,1 )
+channels[0].midinote[0].values.reverse.seq( 1, 2 )
+channels[0].midinote[0].values.transpose.seq( 1, 2 )
+channels[0].midinote[0].values.reset.seq( 1, 8 )
 
-// ... and you can set duration in milliseconds
-channels[0].duration( 2000 )
-channels[0].midinote( 64 )
-channels[0].duration( 50 )
-channels[0].midinote( 64 )
-
-// sequence calls to the note method every 1/16 note. An optional
-// third argument assigns an id# to the sequencer; by
-// default this id is set to 0 if no argument is passed.
-// Assigning sequences to different id numbers allows them
-// to run in parallel.
-channels[0].note.seq( [0,1,2,3,4,5,6,7], 1/8 )
-
-// sequence velocity to use random values between 10-127 (midi range)
-channels[0].velocity.seq( Rndi( 10,127), 1/16 )
-
-// sequence duration of notes in milliseconds
-channels[0].duration.seq( [ 50, 250, 500 ].rnd(), 1/16 )
-
-// sequence the master scale to change root every measure
-Scale.root.seq( ['c4','d4','f4','g4'], 1 )
-
-// sequence the master scale to change mode every measure
-Scale.mode.seq( ['aeolian','lydian', 'wholeHalf'], 1 )
-
-// stop the sequence with id# 0 from running
-channels[0].note[ 0 ].stop()
-
-// stop scale sequencing
-Scale.mode[ 0 ].stop()
-Scale.root[ 0 ].stop()
-
-// set scale mode
-Scale.mode( 'Lydian' )
-Scale.root( 'c3' )
-
-// Create an arpegctor by passing notes of a chord, 
-// number of octaves to play, and style. Possible styles 
-// include 'up', 'down', and 'updown'
-
-a = Arp( [0,2,3,5], 4, 'updown' )
-
-// create sequencer using arpeggiator and 1/16 notes
-channels[0].note.seq( a, 1/16 )
-
-// transpose the notes in our arpeggio by one scale degree
-a.transpose( 1 )
-
-// sequence transposition of one scale degree every measure
-a.transpose.seq( 1,1 )
-
-// reset the arpeggiator every 8 measures 
-// (removes transposition)
-a.reset.seq( 1, 8 )
-
-// stop sequence
-channels[0].note[ 0 ].stop()
-
-// creates sequencer at this.note[1] (0 is default)
-channels[0].note.seq( [0,1,2,3], [1/4,1/8], 1 )
-
-// parallel sequence at this.note[2] with 
-// random note selection  (2 is last arg)
-channels[0].note.seq( [5,6,7,8].rnd(), 1/4, 2 )
-
-// Every sequence contains two Pattern functions. 
-// The first, 'values',determines the output of the 
-// sequencer. The second, 'timings', determines when the 
-// sequencer fires.
-
-// sequence transposition of this.note[2]
-channels[0].note[ 2 ].values.transpose.seq( [1,2,3,-6], 1 )
-
-// stop note[1] sequence
-channels[0].note[ 1 ].stop()
-
-// restart note[1] sequence
-channels[0].note[ 1 ].start()
-
-// stop everything running on the channel
-channels[0].stop()`,
-
-
-['modulating with genish.js'] : `/* gen~ is an extension for Max for Live for synthesizing audio/video signals.
+// This enables us to quickly create variation over time. One more tutorial to go!
+// Learn more about creating synthesis graphs to output CC messages in tutorial #5.`,
+ 
+['tutorial 5: modulating with genish.js'] : `/* gen~ is an extension for Max for Live for synthesizing audio/video signals.
 In gibberwocky.midi, we can use a JavaScript port of gen~, genish.js to create complex modulation graphs outputting
 CC messages. LFOs, ramps, stochastic signals... genish can create a wide variety of modulation sources for
 exploration.
 
-As we saw in the paramter sequencing tutorial (look at that now if you haven't yet, or you'll be a
-bit lost here), most ugens from genish.js are available for scripting in gibberwocky.
+Most ugens from genish.js are available for scripting in gibberwocky.
 Perhaps the most basic modulation is a simple ramp. In your target application / MIDI hardware device setup
 a synthesis parameter to be controlled by CC0. To send a repeating ramp to signal to CC0 on channel 0 we
 would use:*/
@@ -447,10 +365,13 @@ s = Score([
 // Scores can also be stopped automatically to await manual retriggering.
 
 s2 = Score([
-  0, ()=> channels[ 0 ].note( 0 ),
+  0,   ()=> channels[ 0 ].note( 0 ),
+
   1/2, ()=> channels[ 0 ].note( 1 ),
+
   Score.wait, null,
-  0, ()=> channels[0].note( 2 )
+
+  0,   ()=> channels[0].note( 2 )
 ])
 
 // restart playback
@@ -494,7 +415,7 @@ s3.loop( 1 )
  */ 
 
 steps = Steps({
-  [60]: 'ffff',
+  [60]: 'ffff', 
   [62]: '.a.a',
   [64]: '........7.9.c..d',
   [65]: '..6..78..b......',
@@ -508,8 +429,8 @@ steps = Steps({
 steps[71].rotate.seq( 1,1 )
 
 // reverse all steps each measure
-stpes.reverse.seq( 1, 2 )`,
+steps.reverse.seq( 1, 2 )`,
 
 }
 
-module.exports = Examples//stepsExample2//simpleExample//genExample//exampleScore4//exampleScore4 //'this.note.seq( [0,1], Euclid(5,8) );' //exampleCode
+module.exports = Examples

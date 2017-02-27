@@ -78,7 +78,7 @@ let Environment = {
       mode:'javascript', 
       keyMap:'gibber',
       autofocus:true, 
-      value: Gibber.Examples.default,
+      value: Gibber.Examples['tutorial 1: basic messaging'],
       matchBrackets: true,
       autoCloseBrackets: true,
       extraKeys: {"Ctrl-Space": "autocomplete"},
