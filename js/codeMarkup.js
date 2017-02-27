@@ -411,7 +411,7 @@ let Marker = {
 
   _addPatternFilter( patternObject ) {
     patternObject.filters.push( ( args ) => {
-      const wait = Utility.beatsToMs( patternObject.nextTime,  Gibber.Scheduler.bpm ) // TODO: should .25 be a variable representing advance amount?
+      const wait = Utility.beatsToMs( patternObject.nextTime,  Gibber.Scheduler.bpm )
 
       let idx = args[ 2 ],
           shouldUpdate = patternObject.update.shouldUpdate
@@ -430,7 +430,7 @@ let Marker = {
       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
           cssName = className + '_0',
           marker = cm.markText( start, end, { 
-            'className': cssName + ' annotation-border', 
+            'className': cssName + ' annotation annotation-full', 
             inclusiveLeft: true,
             inclusiveRight: true
           })
@@ -448,11 +448,11 @@ let Marker = {
         patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
     },
 
-    UnaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
+    UnaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // -1 etc.
       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
           cssName = className + '_0',
           marker = cm.markText( start, end, { 
-            'className': cssName + ' annotation-border', 
+            'className': cssName + ' annotation', 
             inclusiveLeft: true,
             inclusiveRight: true
           })
@@ -463,6 +463,20 @@ let Marker = {
 
         channel.markup.cssClasses[ className ][ index ] = cssName    
 
+        let start2 = Object.assign( {}, start )
+        start2.ch += 1
+        let marker2 = cm.markText( start, start2, { 
+          'className': cssName + ' annotation-no-right-border', 
+          inclusiveLeft: true,
+          inclusiveRight: true
+        })
+
+        let marker3 = cm.markText( start2, end, { 
+          'className': cssName + ' annotation-no-left-border', 
+          inclusiveLeft: true,
+          inclusiveRight: true
+        })
+
         Marker._addPatternUpdates( patternObject, className )
         Marker._addPatternFilter( patternObject )
 
@@ -470,7 +484,7 @@ let Marker = {
         patternObject._onchange = () => { Marker._updatePatternContents( patternObject, className, channel ) }
     },
 
-    BinaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // TODO: same as literal, refactor?
+    BinaryExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) { // 1/4 etc. 
       let [ className, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
          cssName = className + '_0',
          marker = cm.markText(
@@ -505,11 +519,15 @@ let Marker = {
     },
 
     ArrayExpression( patternNode, containerNode, components, cm, channel, index=0, patternType, patternObject ) {
-      let [ patternName, start, end ] = Marker._getNamesAndPosition( patternNode, containerNode, components, index, patternType ),
-          marker, 
-          count = 0
-
-
+      let [ patternName, start, end ] = Marker._getNamesAndPosition( 
+        patternNode, 
+        containerNode, 
+        components, 
+        index, 
+        patternType 
+      )
+      
+      let count = 0
 
       for( let element of patternNode.elements ) {
         let cssClassName = patternName + '_' + count,
@@ -538,6 +556,26 @@ let Marker = {
           const marker2 = cm.markText( divStart, divEnd, { className:cssClassName + '_binop annotation-binop' })
 
 
+        }else if (element.type === 'UnaryExpression' ) {
+          marker = cm.markText( elementStart, elementEnd, { 
+            'className': cssClassName + ' annotation', 
+            inclusiveLeft: true,
+            inclusiveRight: true
+          })
+
+          let start2 = Object.assign( {}, elementStart )
+          start2.ch += 1
+          let marker2 = cm.markText( elementStart, start2, { 
+            'className': cssClassName + ' annotation-no-right-border', 
+            inclusiveLeft: true,
+            inclusiveRight: true
+          })
+
+          let marker3 = cm.markText( start2, elementEnd, { 
+            'className': cssClassName + ' annotation-no-left-border', 
+            inclusiveLeft: true,
+            inclusiveRight: true
+          })
         }else if( element.type === 'ArrayExpression' ) {
            marker = cm.markText( elementStart, elementEnd, { 
             'className': cssClassName + ' annotation',

@@ -89,6 +89,10 @@ span.cm-string {color: rgb(225, 225, 225) !important }
   box-sizing:border-box !important;
 }
 
+.annotation-full {
+  border-color: #999;
+}
+
 .annotation-highlight { background-color: #ffffff }
 
 .annotation-border { 

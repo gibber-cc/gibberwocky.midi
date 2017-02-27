@@ -165,11 +165,16 @@ let Scale = {
     let mode   = this.modeNumbers,
         isNegative = scaleDegree < 0,
         octave = Math.floor( scaleDegree / mode.length ),
-        degree = mode[ scaleDegree % mode.length ]
+        degree = isNegative ? mode[ Math.abs( mode.length + (scaleDegree % mode.length ) )   ] : mode[ scaleDegree % mode.length ],
+        out
 
-    if( isNegative ) octave != -1
+    if( degree === undefined ) degree = 0
 
-    return this.rootNumber + (octave * 12) + degree
+    out = isNegative ? 
+        this.rootNumber + (octave * 12 ) + degree : 
+        this.rootNumber + (octave * 12 ) + degree
+  
+    return out 
   },
 
   modes: {
