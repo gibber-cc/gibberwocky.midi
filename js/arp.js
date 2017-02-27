@@ -1,6 +1,8 @@
 module.exports = function( Gibber ) {
 
-let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
+
+// XXX updown2 doesn't work...
+let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
   let notes, arp
   
   if( typeof chord === 'string' ) {
@@ -9,16 +11,16 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
     chord = _chord.notes
   }
 
-  notes = Gibber.Pattern.apply( null, chord.slice( 0 ) )
+  notes = Gibber.Pattern( ...chord )
 
   if( pattern === 'down' ) notes.reverse()
   
-  let maxLength = notes.values.length * octaves,
+  let maxLength = pattern = 'updown' ? notes.values.length * octaves : note.values.length * octaves + 1,
       dir = pattern !== 'down' ? 'up' : 'down'
 
   arp = ()=> {
     arp.phase++
-    if( arp.phase >= maxLength ) {
+    if( arp.phase >= maxLength -1 ) {
       arp.phase = 0
     }
 
@@ -31,7 +33,8 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
             arp.octave = 1
           }else{
             dir = 'down'
-            notes.reverse()
+            notes.stepSize *= -1
+
           }
         }
       }else{
@@ -42,7 +45,7 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown2' ) {
             arp.octave = octaves
           } else {
             dir = 'up'
-            notes.reverse()
+            notes.stepSize *= -1
           }
         }
       }

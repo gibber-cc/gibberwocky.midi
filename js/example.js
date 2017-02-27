@@ -84,9 +84,9 @@ Scale.root( 'c3' )
 
 // Create an arpegctor by passing notes of a chord, 
 // number of octaves to play, and style. Possible styles 
-// include 'up', 'down', 'updown' (repeat top and bottom 
-// notes) and 'updown2'
-a = Arp( [0,2,3,5], 4, 'updown2' )
+// include 'up', 'down', and 'updown'
+
+a = Arp( [0,2,3,5], 4, 'updown' )
 
 // create sequencer using arpeggiator and 1/16 notes
 channels[0].note.seq( a, 1/16 )

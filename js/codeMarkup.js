@@ -855,7 +855,7 @@ let Marker = {
     Score( node, cm, channel, objectName, vOffset=0 ) {
       let timelineNodes = node.arguments[ 0 ].elements
       const score = window[ objectName ]
-      //console.log( timelineNodes )
+
       score.markup.textMarkers[ 'score' ] = []
 
       for( let i = 0; i < timelineNodes.length; i+=2 ) {
@@ -943,11 +943,12 @@ let Marker = {
           }
 
           patternObject._onchange = () => {
-            let delay = Utility.beatsToMs( 1,  Gibber.Scheduler.bpm )
+            // delay not needed for MIDI version
+            // let delay = Utility.beatsToMs( 1,  Gibber.Scheduler.bpm )
             Gibber.Environment.animationScheduler.add( () => {
               marker.doc.replaceRange( patternObject.values.join(''), step.loc.start, step.loc.end )
               mark( step, key, cm, channel )
-            }, delay ) 
+            }, 0 ) 
           }
 
           patternObject.update = update
