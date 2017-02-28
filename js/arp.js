@@ -2,7 +2,7 @@ module.exports = function( Gibber ) {
 
 
 // XXX updown2 doesn't work...
-let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
+let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown', octaveRange = 7 ) {
   let notes, arp
   
   if( typeof chord === 'string' ) {
@@ -15,7 +15,7 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
 
   if( pattern === 'down' ) notes.reverse()
   
-  let maxLength = pattern = 'updown' ? notes.values.length * octaves : note.values.length * octaves + 1,
+  let maxLength = pattern === 'updown' ? notes.values.length * octaves : notes.values.length * octaves + 1,
       dir = pattern !== 'down' ? 'up' : 'down'
 
   arp = ()=> {
@@ -26,10 +26,10 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
 
     if( arp.phase % notes.values.length === 0 ) {
       if( dir === 'up' ) {
-        if( arp.octave < octaves ) {
+        if( arp.octave < arp.octaves ) {
           arp.octave += 1 
         }else{ 
-          if( pattern === 'up' ) {
+          if( arp.pattern === 'up' ) {
             arp.octave = 1
           }else{
             dir = 'down'
@@ -41,8 +41,8 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
         if( arp.octave > 1 ) {
           arp.octave += -1
         }else{
-          if( pattern === 'down' ) {
-            arp.octave = octaves
+          if( arp.pattern === 'down' ) {
+            arp.octave = arp.octaves
           } else {
             dir = 'up'
             notes.stepSize *= -1
@@ -57,7 +57,7 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
     //note = Gibber.Theory.Note.convertToMIDI( note )
     
     for( let i = 1; i < arp.octave; i++ ) {
-      note += 7
+      note += octaveRange
     }
 
     let methodNames =  [
@@ -79,10 +79,12 @@ let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown' ) {
     return note
   }
 
+  arp.octaves = octaves
   arp.octave = 0
   arp.phase = -1
   arp.notes = notes
-
+  arp.pattern = pattern
+   
   return arp
 }
 

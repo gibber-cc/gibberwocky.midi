@@ -390,6 +390,118 @@ s3 = Score([
 s3.loop( 1 )
 `,
 
+['using the Arp() object (arpeggiator)']:
+`/*
+  * This tutorial assumes familiarity with the material
+  * covered in tutorials 2–4.
+  *
+  * The Arp() object creates wrapped Pattern objects (see tutorial
+  * #4) that are simply functions playing arpeggios. However,
+  * the pattern transformations available in gibberwocky open
+  * up a great deal of flexiblity in manipulating these arpeggios.
+  */
+
+// Make an arp: chord, number of octaves, mode.
+myarp = Arp( [0,2,4,5], 4, 'updown' )
+
+// other modes include 'up' and 'down'. XXX updown2 is broken :( 
+
+// play arpeggiator with 1/16 notes
+channels[0].note.seq( myarp, 1/16 )
+
+// change root of Scale (see tutorial #3)
+Scale.root( 'c2' )
+
+// randomize arpeggiator
+myarp.shuffle()
+
+// transpose arpeggiator over time
+myarp.transpose.seq( 1,1 )
+
+// reset arpeggiator
+myarp.reset()
+
+// stop arpeggiator
+channels[0].stop()
+
+// The Arp() object can also be used with MIDI note values instead of
+// gibberwocky's system of harmony. However, arp objects are designed
+// to work with calls to note() by default, accordingly, they tranpose
+// patterns by seven per octave (there are seven notes in a scale of one
+// octave). For MIDI notes, there are 12 values... we can specify this
+// as a fourth parameter to the Arp() constructor.
+
+midiArp = Arp( [60,62,64,67,71], 4, 'down', 12 )
+
+channels[0].midinote.seq( midiArp, 1/32 )
+
+// bring everything down an octace
+midiArp.transpose( -12 )
+
+// change number of octaves
+midiArp.octaves = 2
+`,
+
+['using the Euclid() object (euclidean rhythms)'] :
+`/*
+  * This tutorial assumes familiarty with the material
+  * covered in tutorial #2. It will cover the basics of
+  * working with Euclidean rhythms in gibberwocky.
+  *
+  * Euclidean rhythms are specifcations of rhythm using
+  * a number of pulses allocated over a number of beats.
+  * The algorithm attempts to distribute the pulses as
+  * evenly as possible over all beats while maintaining
+  * a grid. You can read a paper describing this here:
+  *
+  * http://archive.bridgesmathart.org/2005/bridges2005-47.pdf
+  *
+  * For example, consider the rhythm '5,8' where there
+  * are 5 pulses over the span of eight notes while
+  * maintaining a temporal grid. The algorithm distributes 
+  * these as follows: "x.xx.xx." where 'x' represents a pulse
+  * and '.' represents a rest. Below are a few other examples:
+  *
+  * 1,4 : x...
+  * 2,3 : x.x
+  * 2,5 : x.x..
+  * 3,5 : x.x.x
+  * 3,8 : x..x..x.
+  * 4,9 : x.x.x.x..
+  * 5,9 : x.x.x.x.x
+  *
+  * In gibberwocky, by default the number of beats chosen
+  * also determines the time used by each beat; selecting
+  * '5,8' means 5 pulses spread across 8 1/8 notes. However,
+  * you can also specify a different temporal resolution for
+  * the resulting pattern: '5,8,1/16' means 5 pulses spread
+  * across 8 beats where each beat is a 1/16th note.
+  *
+  * You can specify Euclidean rhyhtms using the Euclid()
+  * function, which returns a pattern (see tutorial #4);
+  * in the example below I've assigned this to the variable E.
+  */
+
+// store for faster reference
+E = Euclid
+
+// 5 pulses spread over 8 eighth notes
+channels[0].midinote.seq( 60, E(5,8) )
+
+// 3 pulses spread over 8 sixteenth notes
+channels[0].midinote.seq( 48, E( 3, 8, 1/16 ), 1  )
+
+// a quick way of notating x.x.
+channels[0].midinote.seq( 36, E(2,4), 2 ) 
+
+// because Euclid() generates Pattern objects (see tutorial #3)
+// we can transform the patterns it generates:
+
+channels[0].midinote[1].timings.rotate.seq( 1,1 )
+
+`,
+
+
 ['using the Steps() object (step-sequencer)'] : `/* Steps() creates a group of sequencer objects. Each
  * sequencer is responsible for playing a single note,
  * where the velocity of each note is determined by
