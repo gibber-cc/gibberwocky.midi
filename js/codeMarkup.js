@@ -21,6 +21,8 @@ const $ = Utility.create
 
 let Marker = {
   genWidgets: { dirty:false },
+  unassignedWidgets: {}, 
+
   _patternTypes: [ 'values', 'timings', 'index' ],
 
   prepareObject( obj ) {
@@ -78,6 +80,15 @@ let Marker = {
   },
   
   processGen( node, cm, channel ) {
+    // are we passing gen expression to cc function or are we storing it in a variable?
+    let shouldDelayPlacement = false,
+        variableName = null
+
+    if( node.expression.type === 'AssignmentExpression' ) {
+      shouldDelayPlacement = true
+      variableName = node.expression.left.name
+    }
+
     let ch = node.end, line = node.verticalOffset, start = ch - 1, end = node.end 
     
     cm.replaceRange( ') ', { line, ch:start }, { line, ch } )
@@ -100,15 +111,36 @@ let Marker = {
     widget.gen = Gibber.Gen.lastConnected
     widget.values = []
 
-    let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
+    if( widget.gen !== undefined ) { // if gen has been assigned to cc
+      let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
 
-    if( oldWidget !== undefined ) {
-      oldWidget.parentNode.removeChild( oldWidget )
-    } 
-    
-    Marker.genWidgets[ widget.gen.ccnum ] = widget
+      if( oldWidget !== undefined ) {
+        oldWidget.parentNode.removeChild( oldWidget )
+      } 
 
-    widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
+      Marker.genWidgets[ widget.gen.ccnum ] = widget
+    }
+
+    if( shouldDelayPlacement ) {
+      window[ variableName ].__widget__ = widget
+
+      widget.place = () => {
+        widget.gen = Gibber.Gen.lastConnected
+
+        if( widget.gen !== undefined ) { // if gen has been assigned to cc
+          let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
+
+          if( oldWidget !== undefined ) {
+            oldWidget.parentNode.removeChild( oldWidget )
+          } 
+
+          Marker.genWidgets[ widget.gen.ccnum ] = widget
+        }
+        widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
+      }
+    }else{
+      widget.mark = cm.markText({ line, ch }, { line, ch:end+1 }, { replacedWith:widget })
+    }
   },
 
   updateWidget( id, value ) {

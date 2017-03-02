@@ -17,6 +17,18 @@ let Gen  = {
     Gibber.Environment.animationScheduler.add( update )
 
     //Gibber.Environment.codeMarkup.updateWidget( 1, Gibber.Environment.codeMarkup.genWidgets[1].gen() )
+
+    Gen.wrapGenish()
+
+  },
+
+  wrapGenish() {
+    const doNotInclude = [ 'export', 'gen', 'utilities' ]
+    for( let ugenName in Gen.genish ) {
+      if( doNotInclude.includes( ugenName ) ) continue
+      
+      Gen.wrappedGenish[ ugenName ] = Gen.create.bind( Gen, ugenName ) 
+    }
   },
 
   solo( channel=0, ccnum=0 ) {
@@ -43,12 +55,61 @@ let Gen  = {
   },
 
   genish,
+  wrappedGenish: {},
 
   names:[],
   connected: [],
 
   // if property is !== ugen (it's a number) a Param must be made using a default
-  create( name ) {
+  create( name, ...inputArgs  ) {
+
+    const parameters = []
+
+    const spec = Gen.spec[ name ]
+    
+    let i;
+    for( i = 0; i < spec.length; i++ ) {
+      let arg = inputArgs[ i ]
+
+      if( typeof arg === undefined ) {
+        arg = spec[ i ]  
+      }
+
+      switch( typeof arg ) {
+        case 'number':
+          parameters.push( Gen.genish.param( arg ) )
+          break;
+        
+        case 'object':
+          parameters.push( arg )
+          break;
+      }
+    }
+
+    // if properties dictionary is also passed to ugen constructor
+    if( i <= inputArgs.length - 1 ) { parameters.push( inputArgs[ i ] ) }
+
+    console.log( 'paramaters:', parameters )
+    const ugen = Gen.genish[ name ]( ...parameters )
+
+    for( let j = 0; j < ugen.inputs.length; j++ ) {
+      const input = ugen.inputs[ j ]
+
+      if( input.basename === 'param' ) {
+        ugen[ j ] = v => {
+          if( v === undefined ) {
+            return input.value
+          }else{
+            input.value = v
+          }
+        }
+
+        //Gibber.addSequencingToMethod( ugen, j )
+      }
+    }
+
+    return ugen
+    /*
     let obj = Object.create( this ),
         count = 0,
         params = Array.prototype.slice.call( arguments, 1 )
@@ -75,7 +136,7 @@ let Gen  = {
       Gibber.addSequencingToMethod( obj, key )
     }
 
-    return obj
+    return obj*/
   },
   
 
@@ -92,10 +153,6 @@ let Gen  = {
   },
 
   clear() {
-    for( let ugen of Gen.connected ) {
-      Gibber.Communication.send( `ungen ${ugen.paramID}` )
-    }
-
     Gen.connected.length = 0
   },
 
@@ -181,7 +238,20 @@ let Gen  = {
   export( obj ) {
     genish.export( obj )
     Object.assign( obj, this.composites )
-  }
+  },
+
+  spec : {
+    cycle:[ 1, 0 ],
+    accum:[ 0, 0 ],
+    abs:[ 0 ],
+    sin:[ 0 ],
+    cos:[ 0 ],
+    asin:[ 0 ],
+    acos:[ 0 ],
+    ad: [ 44100, 44100 ],
+    adsr:[ 44, 22050, 44100, .6, 44100 ], 
+    
+  },
 }
 
 Gen.init()

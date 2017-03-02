@@ -214,38 +214,46 @@ let Gibber = {
     }
 
     
-    obj[ methodName ] = p = ( _v, shouldTransform=true ) => {
+    obj[ methodName ] = p = ( initialGraph, shouldTransform=true ) => {
+      let transformedGraph = null, finishedGraph = null
       //if( p.properties.quantized === 1 ) _v = Math.round( _v )
       
-      if( typeof _v === 'object' ) _v.isGen = typeof _v.gen === 'function'
+      if( typeof initialGraph === 'object' ) initialGraph.isGen = typeof initialGraph.gen === 'function'
 
-      if( _v !== undefined ) {
-        if( typeof _v === 'object' && _v.isGen ) {
+      if( initialGraph !== undefined ) {
+        if( typeof initialGraph === 'object' && initialGraph.isGen ) {
           if( shouldTransform === true ) { // affine transform -1:1 to 0:127
-            _v = 
-              Gibber.Gen.genish.clamp(
-                Gibber.Gen.genish.floor(
-                  Gibber.Gen.genish.mul( 
-                    Gibber.Gen.genish.div( 
-                      Gibber.Gen.genish.add( 1, _v ), 
-                      2 
-                    ), 
-                  127 
-                  ) 
-                ),
-              0, 127 )
+            transformedGraph = Gibber.Gen.genish.clamp(
+              Gibber.Gen.genish.floor(
+                Gibber.Gen.genish.mul( 
+                  Gibber.Gen.genish.div( 
+                    Gibber.Gen.genish.add( 1, initialGraph ), 
+                    2 
+                  ), 
+                127 
+                ) 
+              ),
+            0, 127 )
           }
 
-          _v = Gibber.Gen.genish.gen.createCallback( _v )
+          finishedGraph = shouldTransform ?
+            Gibber.Gen.genish.gen.createCallback( transformedGraph ) :
+            Gibber.Gen.genish.gen.createCallback( initialGraph ) 
 
-          Gibber.Gen.assignTrackAndParamID( _v, channel, ccnum )
+
+          Gibber.Gen.assignTrackAndParamID( finishedGraph, channel, ccnum )
           
           // if a gen is not already connected to this parameter, push
           if( Gibber.Gen.connected.find( e => e.ccnum === ccnum && e.channel === channel ) === undefined ) {
-            Gibber.Gen.connected.push( _v )
+            Gibber.Gen.connected.push( finishedGraph )
           }
 
-          Gibber.Gen.lastConnected = _v
+          Gibber.Gen.lastConnected = finishedGraph
+
+
+          if( '__widget__' in initialGraph ) {
+            initialGraph.__widget__.place()
+          }
           
           // disconnects for fades etc.
           //if( typeof _v.shouldKill === 'object' ) {
@@ -261,16 +269,19 @@ let Gibber = {
           //  }, _v.shouldKill.after )
           //}
           
-          v = _v
+          v = finishedGraph
+          v.isGen = true
         }else{
           // if there was a gen assigned and now a number is being assigned...
           if( v.isGen ) { 
-            Gibber.Communication.send( `ungen ${parameter.id}` )
-            let widget = Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+            console.log( 'removing gen', v.id )
+            let widget = Gibber.Environment.codeMarkup.genWidgets[ v.id ]
+
             if( widget !== undefined && widget.mark !== undefined ) {
               widget.mark.clear()
             }
-            delete Gibber.Environment.codeMarkup.genWidgets[ parameter.id ]
+            delete Gibber.Environment.codeMarkup.genWidgets[ v.id ]
+
           }
 
           v = _v

@@ -1,4 +1,4 @@
-require( 'babel-polyfill' )
+//require( 'babel-polyfill' )
 
 let Gibber = require( './gibber.js' ),
     useAudioContext = false,
