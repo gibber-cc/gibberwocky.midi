@@ -76,20 +76,21 @@ let Gen  = {
       }
 
       switch( typeof arg ) {
+        // wrap all number arguments in param ugens for sequencing
         case 'number':
           parameters.push( Gen.genish.param( arg ) )
           break;
         
+        // do not wrap ugens passed as parameters
         case 'object':
           parameters.push( arg )
           break;
       }
     }
 
-    // if properties dictionary is also passed to ugen constructor
+    // if properties dictionary is also passed to ugen constructor...
     if( i <= inputArgs.length - 1 ) { parameters.push( inputArgs[ i ] ) }
 
-    console.log( 'paramaters:', parameters )
     const ugen = Gen.genish[ name ]( ...parameters )
 
     for( let j = 0; j < ugen.inputs.length; j++ ) {
@@ -97,6 +98,7 @@ let Gen  = {
 
       if( input.basename === 'param' ) {
         ugen[ j ] = v => {
+          console.log('called:', v )
           if( v === undefined ) {
             return input.value
           }else{
@@ -104,7 +106,7 @@ let Gen  = {
           }
         }
 
-        //Gibber.addSequencingToMethod( ugen, j )
+        Gibber.addSequencingToMethod( ugen, j )
       }
     }
 

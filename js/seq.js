@@ -168,7 +168,7 @@ let seqclosure = function( Gibber ) {
             //let msg = this.externalMessages[ this.key ]( value, beat + _beatOffset, this.trackID )
             
             //scheduler.msgs.push( msg, this.priority )
-            if( this.object && this.key ) {
+            if( this.object && this.key !== undefined ) {
               if( typeof this.object[ this.key ] === 'function' ) {
                 this.object[ this.key ]( value, Gibber.Utility.beatsToMs( _beatOffset ), true )
               }else{
