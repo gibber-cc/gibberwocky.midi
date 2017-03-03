@@ -117,7 +117,7 @@ let Marker = {
     if( widget.gen !== undefined ) { // if gen has been assigned to cc
       let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
 
-      if( oldWidget !== undefined ) {
+      if( oldWidget !== undefined && oldWidget.parentNode !== undefined && oldWidget.parentNode !== null ) {
         oldWidget.parentNode.removeChild( oldWidget )
       } 
 
@@ -133,7 +133,10 @@ let Marker = {
         if( widget.gen !== undefined ) { // if gen has been assigned to cc
           let oldWidget = Marker.genWidgets[ widget.gen.ccnum ] 
 
-          if( oldWidget !== undefined ) {
+          // check to see if widget has already been used with this cc #
+          // and if so, that it hasn't already been cleared (via ctrl-.)
+          if( oldWidget !== undefined && oldWidget.parentNode !== undefined ) {
+            console.log( oldWidget.parentNode )
             oldWidget.parentNode.removeChild( oldWidget )
           } 
 

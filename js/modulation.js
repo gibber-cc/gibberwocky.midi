@@ -29,6 +29,11 @@ let Gen  = {
       
       Gen.wrappedGenish[ ugenName ] = Gen.create.bind( Gen, ugenName ) 
     }
+    //for( let ugenName in Gen.genish ) {
+    //  if( doNotInclude.includes( ugenName ) ) continue
+      
+    //  Gen.wrappedGenish[ ugenName ] = Gen.create.bind( Gen, ugenName ) 
+    //}
   },
 
   solo( channel=0, ccnum=0 ) {
@@ -243,15 +248,19 @@ let Gen  = {
   },
 
   spec : {
-    cycle:[ 1, 0 ],
     accum:[ 0, 0 ],
     abs:[ 0 ],
-    sin:[ 0 ],
-    cos:[ 0 ],
+    add:[ 0,0 ],
     asin:[ 0 ],
     acos:[ 0 ],
     ad: [ 44100, 44100 ],
     adsr:[ 44, 22050, 44100, .6, 44100 ], 
+    cos:[ 0 ],
+    cycle:[ 1, 0 ],
+    div: [0,0],
+    lfo: [0,0,0],
+    mul: [0,0],
+    sin:[ 0 ],
     
   },
 }

@@ -316,7 +316,9 @@ channels[0].cc0( cycle( .5 ) )
 a specific amplitude and frequency. The lfo() function provides a simpler syntax for doing this:*/
 
 // frequency, amplitude, bias
-channels[0].cc0( lfo( 2, .2, .7 ) )
+mylfo = lfo( 2, .2, .7 )
+
+channels[0].cc0( mylfo )
 
 // We can also easily sequence parameters of our LFO XXX CURRENTLY BROKEN:
 
