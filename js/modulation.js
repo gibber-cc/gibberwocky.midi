@@ -23,7 +23,7 @@ let Gen  = {
   },
 
   wrapGenish() {
-    const doNotInclude = [ 'export', 'gen', 'utilities' ]
+    const doNotInclude = [ 'export', 'gen', 'utilities', 'history' ]
     for( let ugenName in Gen.genish ) {
       if( doNotInclude.includes( ugenName ) ) continue
       
@@ -93,12 +93,11 @@ let Gen  = {
 
     const ugen = Gen.genish[ name ]( ...parameters )
 
-    for( let j = 0; j < ugen.inputs.length; j++ ) {
-      const input = ugen.inputs[ j ]
+    for( let j = 0; j < parameters.length; j++ ) {
+      const input = parameters[ j ]
 
       if( input.basename === 'param' ) {
         ugen[ j ] = v => {
-          console.log('called:', v )
           if( v === undefined ) {
             return input.value
           }else{
@@ -238,7 +237,8 @@ let Gen  = {
   },
 
   export( obj ) {
-    genish.export( obj )
+    //genish.export( obj )
+    Object.assign( obj, this.wrappedGenish )
     Object.assign( obj, this.composites )
   },
 

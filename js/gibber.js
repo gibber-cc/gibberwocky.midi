@@ -250,7 +250,6 @@ let Gibber = {
 
           Gibber.Gen.lastConnected = finishedGraph
 
-
           if( '__widget__' in initialGraph ) {
             initialGraph.__widget__.place()
           }

@@ -38,8 +38,10 @@ let Marker = {
 
     if( !shouldParse ) { // check for gen~ assignment
       for( let ugen in Gibber.Gen.genish ) {
-        let idx = code.indexOf( ugen )
-        if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+        let idx1 = code.indexOf( ugen+'(' ),
+            idx2 = code.indexOf( ugen+' (' )
+
+        if( idx1 + idx2 > -2 ) { 
           shouldParse = true
           isGen = true
           break;
@@ -47,14 +49,15 @@ let Marker = {
       }
       if( !isGen ) {
         for( let ugen in Gibber.Gen.composites ) {
-          let idx = code.indexOf( ugen )
-          if( idx !== -1 && code.charAt( idx + ugen.length ) === '('  ) {
+        let idx1 = code.indexOf( ugen+'(' ),
+            idx2 = code.indexOf( ugen+' (' )
+
+        if( idx1 + idx2 > -2 ) { 
             shouldParse = true
             isGen = true
             break;
           }
         }
-
       }
     }
 
