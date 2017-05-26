@@ -2,10 +2,10 @@
 
 This repo is for a plugin to live code MIDI messages for targeting synths and/or digital audio workstations. It is fork of [Gibberwocky](https://github.com/charlieroberts/gibberwocky), a live-coding environment for Ableton Live, which in turn is based on [Gibber](https://github.com/charlieroberts/gibber), a live-coding environment for the browser that targets the WebAudio API.
 
-## Using
-1. Load the index.html page in a browser that supports the WebMIDI API (tested in Chrome).
-2. Hit Ctrl+Enter to execute a line of code. Look at the tutorials for examples of how to use... this project is currently very pre-alpha, so not much documentation to share at the moment.
-
+## Live Environment
+1. Load [gibberwocky.midi](http://gibberwocky.cc/midi) in Chrome.
+2. Hit Ctrl+Enter to execute a line of code. Look at the tutorials for examples of how to use.
+3. See the [reference](http://gibberwocky.cc/reference) for more information.
 
 ## Development
 
