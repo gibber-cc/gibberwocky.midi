@@ -33,6 +33,7 @@ let Score = {
       phase:      0,
       index:      0,
       isPaused:   true,
+      startPhase: 0,
     })
 
     for( let i = 0; i < data.length; i+=2 ) {
@@ -112,7 +113,7 @@ let Score = {
 
   tick( scheduler, beat, beatOffset ) {
     if( !this.isPaused ) {
-      if( this.phase >= this.nextTime && this.index < this.timeline.length ) {
+      if( this.index < this.timeline.length ) {
         
         let fnc = this.timeline[ this.index ],
             shouldExecute = true
@@ -210,6 +211,7 @@ let Score = {
         }
       }
 
+      console.log( this.nextTime, this.phase, beat, scheduler )
       Gibber.Scheduler.addMessage( this, this.nextTime )
       this.phase += this.rate //rate TODO: what if a beat isn't a quarter note?
     }

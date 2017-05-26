@@ -145,6 +145,17 @@ let Utility = {
     return (beats / beatsPerSecond ) * 1000
   },
 
+  beatsToFrequency( beats ) {
+    /*window.btof = function( b ) {
+      Gibber.Audio.context.sampleRate / (b *(60/Clock.bpm) * Gibber.Audio.context.sampleRate)
+    }*/
+
+    const bpm = Gibber.Scheduler.bpm
+    const sr  = 1000
+
+   return sr / ( beats * ( 60 / bpm ) * sr )
+  },
+
   future( func, time ) {
     let msg = {
       tick( scheduler, beat, beatOffset ) {
@@ -161,6 +172,8 @@ let Utility = {
     destination.Rndf = Utility.Rndf
     destination.Rndi = Utility.Rndi
     destination.future = Utility.future
+    destination.btoms  = Utility.beatsToMs
+    destination.btof   = Utility.beatsToFrequency
 
     Array.prototype.random = Array.prototype.rnd = Utility.random
   }

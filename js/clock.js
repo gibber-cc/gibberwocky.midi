@@ -10,8 +10,9 @@ let Scheduler = {
   functionsToExecute: [],
   mockBeat: 0,
   mockInterval: null,
-  currentBeat: 1,
+  currentBeat:-1,
   currentTime: 0,
+  currentTimeInMs:0,
   animationOffset:0,
   animationClockInitialized: false,
   lastBeat: 0,
@@ -80,9 +81,10 @@ let Scheduler = {
 
   beatCallback( time ) {
     const timeDiff = time - this.lastBeat
-    if( timeDiff >= 500 ) {
+    const oneBeat = (60 / this.bpm) * 1000 
+    if( timeDiff >= oneBeat ) {
       this.advanceBeat()
-      this.lastBeat = time - (timeDiff - 500) // preserve phase remainder
+      this.lastBeat = time - (timeDiff - oneBeat) // preserve phase remainder
     }
 
     if( this.__sync__ === false ) {
@@ -106,6 +108,7 @@ let Scheduler = {
       this.queue.pop()
 
       this.currentTime = nextTick.time
+      this.currentTimeInMs = Gibber.Utility.beatsToMs( this.currentTime )
 
       // execute callback function for tick passing schedule, time and beatOffset
       // console.log( 'next tick', nextTick.shouldExecute )
@@ -121,6 +124,8 @@ let Scheduler = {
 
       this.phase += advanceAmount   // increment phase
       this.currentTime = this.phase
+      this.currentTimeInMs = Gibber.Utility.beatsToMs( this.currentTime )
+
     }
   },
 
@@ -150,6 +155,7 @@ let Scheduler = {
   },
 
   seq( beat ) {
+    //console.log( beat, Scheduler.bpm )
     beat = parseInt( beat )
 
     if( beat === 0 ) {

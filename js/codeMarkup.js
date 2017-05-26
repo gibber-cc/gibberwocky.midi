@@ -854,6 +854,7 @@ let Marker = {
     },
     anonymousFunction: ( patternObject, marker, className, cm ) => {
       patternObject.commentMarker = marker
+      
       let update = () => {
         if( !patternObject.commentMarker ) return
         let patternValue = '' + patternObject.update.value.pop()

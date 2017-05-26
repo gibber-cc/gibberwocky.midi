@@ -51,49 +51,56 @@ let Pattern = function( ...args ) {
    */
   let isFunction = args.length === 1 && typeof args[0] === 'function'
 
-  let fnc = function() {
-    let len = fnc.getLength(),
-        idx, val, args
-    
-    if( len === 1 ) { 
-      idx = 0 
-    }else{
-      idx = fnc.phase > -1 ? Math.floor( fnc.start + (fnc.phase % len ) ) : Math.floor( fnc.end + (fnc.phase % len ) )
-    }
+  let fnc
 
-    if( isFunction ) {
-      val = fnc.values[ 0 ]()
-      args = fnc.runFilters( val, idx )
-      val = args[0]
-    }else{
-      val = fnc.values[ Math.floor( idx % fnc.values.length ) ]
-      args = fnc.runFilters( val, idx )
-    
-      fnc.phase += fnc.stepSize * args[ 1 ]
-      val = args[ 0 ]
-    }
-    // check to see if value is a function, and if so evaluate it
-    //if( typeof val === 'function' ) {
+  if( typeof args[0] === 'function' && args[0].wavePattern === true ) {
+    fnc = args[0]
+    args.shift()
+  }else{
+    fnc = function() {
+      let len = fnc.getLength(),
+          idx, val, args
+
+      if( len === 1 ) { 
+        idx = 0 
+      }else{
+        idx = fnc.phase > -1 ? Math.floor( fnc.start + (fnc.phase % len ) ) : Math.floor( fnc.end + (fnc.phase % len ) )
+      }
+
+      if( isFunction ) {
+        val = fnc.values[ 0 ]()
+        args = fnc.runFilters( val, idx )
+        val = args[0]
+      }else{
+        val = fnc.values[ Math.floor( idx % fnc.values.length ) ]
+        args = fnc.runFilters( val, idx )
+
+        fnc.phase += fnc.stepSize * args[ 1 ]
+        val = args[ 0 ]
+      }
+      // check to see if value is a function, and if so evaluate it
+      //if( typeof val === 'function' ) {
       //val = val()
-    //}
-    /*else if ( Array.isArray( val ) ) {
+      //}
+      /*else if ( Array.isArray( val ) ) {
       // if val is an Array, loop through array and evaluate any functions found there. TODO: IS THIS SMART?
 
       for( let i = 0; i < val.length; i++ ){
-        if( typeof val[ i ] === 'function' ) {
-          val[ i ] = val[ i ]()
-        }
+      if( typeof val[ i ] === 'function' ) {
+      val[ i ] = val[ i ]()
       }
+      }
+      }
+      */
+
+      // if pattern has update function, add new value to array
+      // values are popped when updated by animation scheduler
+      if( fnc.update && fnc.update.value ) fnc.update.value.unshift( val )
+
+      if( val === fnc.DNR ) val = null
+
+      return val
     }
-    */
-
-    // if pattern has update function, add new value to array
-    // values are popped when updated by animation scheduler
-    if( fnc.update && fnc.update.value ) fnc.update.value.unshift( val )
-    
-    if( val === fnc.DNR ) val = null
-
-    return val
   }
    
   Object.assign( fnc, {

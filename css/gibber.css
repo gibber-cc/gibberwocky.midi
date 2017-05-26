@@ -191,6 +191,8 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 
 #demos ul li { margin-bottom: 5px }
 
+#demos ul li:hover { background: rgba( 255,255,255, .15) }
+
 #splitbar {
   display:inline-block;
   top:0;
@@ -252,3 +254,10 @@ span.cm-string {color: rgb(225, 225, 225) !important }
 }
 
 label { margin-bottom:5px; }
+
+#help a {
+  color: #ddd
+}
+
+#help p { max-width: 24em; margin-top:0 }
+

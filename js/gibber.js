@@ -13,6 +13,7 @@ let Gibber = {
   Score:         null,
   Pattern:       null,
   Arp:           null,
+  WavePattern:   null,
   currentTrack:  null,
   codemirror:    null,
   max:           null,
@@ -33,6 +34,8 @@ let Gibber = {
     window.Scale         = this.Theory.Scale.master
     window.channels      = this.MIDI.channels
     window.Clock         = this.Scheduler
+    window.log           = this.log
+    window.WavePattern   = this.WavePattern
     
     Gibber.Gen.export( window )
 
@@ -43,7 +46,6 @@ let Gibber = {
     // XXX WATCH OUT
     this.Environment.debug = false
 
-    this.max = window.max
     this.$   = Gibber.Utility.create
 
     this.Environment.init( Gibber )
@@ -273,7 +275,7 @@ let Gibber = {
         }else{
           // if there was a gen assigned and now a number is being assigned...
           if( v.isGen ) { 
-            console.log( 'removing gen', v.id )
+            console.log( 'removing gen', v )
             let widget = Gibber.Environment.codeMarkup.genWidgets[ v.id ]
 
             if( widget !== undefined && widget.mark !== undefined ) {
@@ -283,7 +285,7 @@ let Gibber = {
 
           }
 
-          v = _v
+          v = initialGraph
           Gibber.Seq.proto.externalMessages[ seqKey ]( v )
           //Gibber.Communication.send( `set ${parameter.id} ${v}` )
         }
@@ -317,5 +319,6 @@ Gibber.Euclid  = require( './euclidean.js')( Gibber )
 Gibber.Gen     = require( './modulation.js' )( Gibber )
 Gibber.Steps   = require( './steps.js' )( Gibber )
 Gibber.Channel = require( './channel.js')( Gibber )
+Gibber.WavePattern = require( './wavePattern.js' )( Gibber )
 
 module.exports = Gibber

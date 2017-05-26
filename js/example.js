@@ -2,6 +2,9 @@ const Examples = {
   ['tutorial 1: basic messaging']:`/*
  * gibberwocky.midi - tutorial #1: basic messaging
  *
+ * First, note that this website ONLY WORKS IN CHROME AND OPERA due
+ * to their support for the WebMIDI API.
+ *
  * This first intro will explain how to execute code, and send basic
  * MIDI noteon / noteoff and CC messages. 
  * 

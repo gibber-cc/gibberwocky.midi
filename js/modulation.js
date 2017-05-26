@@ -14,7 +14,7 @@ let Gen  = {
       Gen.runWidgets()
     }
 
-    Gibber.Environment.animationScheduler.add( update )
+    //Gibber.Environment.animationScheduler.add( update )
 
     //Gibber.Environment.codeMarkup.updateWidget( 1, Gibber.Environment.codeMarkup.genWidgets[1].gen() )
 
@@ -67,6 +67,7 @@ let Gen  = {
 
   // if property is !== ugen (it's a number) a Param must be made using a default
   create( name, ...inputArgs  ) {
+    console.log( inputArgs, name )
 
     const parameters = []
 
@@ -235,7 +236,28 @@ let Gen  = {
     beats( num ) {
       const r = rate( 'in1', num )
       r.isGen = true
-      return r
+      
+      /*window.btof = function( b ) {
+        Gibber.Audio.context.sampleRate / (b *(60/Clock.bpm) * Gibber.Audio.context.sampleRate)
+      }*/
+
+      const frequency = Gibber.Utility.beatsToFrequency( num )
+      
+      const ugen = Gen.wrappedGenish[ 'phasor' ]( frequency, 0, { min:0, max:1 } )
+      const storedAssignmentFunction = ugen[0]
+
+      ugen[0] = v => {
+        if( v === undefined ) {
+          return storedAssignmentFunction()
+        }else{
+          const freq = Gibber.Utility.beatsToFrequency( v )
+          storedAssignmentFunction( freq )
+        }
+      }
+      
+      Gibber.addSequencingToMethod( ugen, '0' )
+
+      return ugen
       // beat( n ) => rate(in1, n)
       // final string should be rate( in1, num )
     }
@@ -251,16 +273,64 @@ let Gen  = {
     accum:[ 0, 0 ],
     abs:[ 0 ],
     add:[ 0,0 ],
+    and:[0,0],
+    atan:[0,0],
     asin:[ 0 ],
     acos:[ 0 ],
     ad: [ 44100, 44100 ],
     adsr:[ 44, 22050, 44100, .6, 44100 ], 
+    bang:[0],
+    bool:[0],
+    ceil:[0],
+    clamp:[0,-1,1],
+    counter:[1,0,Infinity,0,1],
     cos:[ 0 ],
     cycle:[ 1, 0 ],
+    data:[],
+    dcblock:[0],
+    decay:[44100],
+    delay:[0,256],
+    delta:[0],
     div: [0,0],
+    eq: [0,0],
+    floor: [0],
+    fold: [0,0,1],
+    gate:[0,0],
+    gt:[0,0],
+    gte:[0,0],
+    gtp:[0,0],
+    lt:[0,0],
+    lte:[0,0],
+    ltp:[0,0],
     lfo: [0,0,0],
+    max: [0,0],
+    min: [0,0],
+    mod: [0,0],
+    mstosamps: [0],
+    mtof: [0],
     mul: [0,0],
+    neq: [0,0],
+    noise:[],
+    not:[0],
+    pan:[0,0,.5],
+    peek:[0,0],
+    phasor:[1,0],
+    poke:[],
+    pow:[0,1],
+    rate:[0,1],
+    round:[0],
+    sah:[0,0,0],
+    sign:[0],
+    selector:[],
     sin:[ 0 ],
+    slide:[0,1,1],
+    sub:[0,0],
+    ternary:[0,1,0],
+    t60:[0],
+    tan:[0],
+    tanh:[0],
+    train:[440,.5],
+    wrap:[0,0,1]
     
   },
 }

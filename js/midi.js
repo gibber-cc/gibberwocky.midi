@@ -165,6 +165,7 @@ const MIDI = {
       if( msg.data[0] === 0xf2 ) { // stop
         MIDI.timestamps.length = 0
         MIDI.clockCount = 0
+        Gibber.Scheduler.currentBeat = -1
         MIDI.lastClockTime = null
       } else if (msg.data[0] === 0xfa ) { // play
         MIDI.running = true
@@ -174,14 +175,15 @@ const MIDI = {
 
         if( MIDI.timestamps.length > 0 ) {
           const diff = msg.timeStamp - MIDI.lastClockTime
+          if( diff < 10 ) console.log( 'diff:', diff )
           MIDI.timestamps.unshift( diff )
-          while( MIDI.timestamps.length > 10 ) MIDI.timestamps.pop()
+          while( MIDI.timestamps.length > 20 ) MIDI.timestamps.pop()
 
           const sum = MIDI.timestamps.reduce( (a,b) => a+b )
           const avg = sum / MIDI.timestamps.length
 
           let bpm = (1000 / (avg * 24)) * 60
-          Gibber.Scheduler.bpm = bpm
+          Gibber.Scheduler.bpm = Math.round( Math.round( bpm *  100 ) / 100 )
    
           if( MIDI.clockCount++ === 23 ) {
             Gibber.Scheduler.advanceBeat()
