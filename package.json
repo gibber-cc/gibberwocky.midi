@@ -1,6 +1,6 @@
 {
   "name": "gibberwocky.midi",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Use Gibber's music programming language with MIDI messaging.",
   "main": "js/index.js",
   "dependencies": {
