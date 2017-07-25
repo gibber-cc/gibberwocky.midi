@@ -1,7 +1,7 @@
 {
-  "name": "gibber.max",
+  "name": "gibberwocky.midi",
   "version": "1.0.0",
-  "description": "Use Gibber inside Max/MSP and Max 4 Live.",
+  "description": "Use Gibber's music programming language with MIDI messaging.",
   "main": "js/index.js",
   "dependencies": {
     "browserify": "^12.0.1",
@@ -27,9 +27,11 @@
   },
   "keywords": [
     "gibber",
-    "max/msp",
-    "live",
-    "coding"
+    "MIDI",
+    "live coding",
+    "music",
+    "sequencing",
+    "algorave"
   ],
   "author": "Charlie Roberts <charlie@charlie-roberts.com> (http://www.charlie-roberts.com/)",
   "license": "MIT"
