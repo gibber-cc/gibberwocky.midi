@@ -165,7 +165,7 @@ const MIDI = {
       if( msg.data[0] === 0xf2 ) { // stop
         MIDI.timestamps.length = 0
         MIDI.clockCount = 0
-        Gibber.Scheduler.currentBeat = -1
+        Gibber.Scheduler.currentBeat = -4
         MIDI.lastClockTime = null
       } else if (msg.data[0] === 0xfa ) { // play
         MIDI.running = true

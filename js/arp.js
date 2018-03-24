@@ -1,5 +1,5 @@
 module.exports = function( Gibber ) {
-
+ 
 
 // XXX updown2 doesn't work...
 let Arp = function( chord = [0,2,4,6], octaves = 1, pattern = 'updown', octaveRange = 7 ) {
